@@ -9,6 +9,7 @@ alphafold_bps_results/
 *.pdb
 
 # Generated outputs
+results/
 *_output/
 *.db
 *.sqlite
