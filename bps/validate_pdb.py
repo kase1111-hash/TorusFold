@@ -239,6 +239,21 @@ def _generate_synthetic_proteins(
     return proteins
 
 
+def _is_nmr_structure(pdb_path: str) -> bool:
+    """Detect NMR structures by checking for multiple MODEL records."""
+    model_count = 0
+    try:
+        with open(pdb_path) as f:
+            for line in f:
+                if line.startswith("MODEL "):
+                    model_count += 1
+                    if model_count >= 2:
+                        return True
+    except OSError:
+        pass
+    return False
+
+
 def process_single_protein(
     pdb_id: str,
     chain_id: str,
@@ -249,11 +264,14 @@ def process_single_protein(
 ) -> Optional[Dict]:
     """Download, extract dihedrals, compute BPS/L for one PDB structure.
 
-    Returns a result dict or None on failure.
+    Returns a result dict or None on failure. The result dict includes
+    'is_nmr' flag for downstream quality filtering.
     """
     pdb_path = download_pdb(pdb_id, cache_dir=cache_dir)
     if pdb_path is None:
         return None
+
+    is_nmr = _is_nmr_structure(pdb_path)
 
     try:
         residues = extract_dihedrals_pdb(pdb_path, chain_id=chain_id)
@@ -265,7 +283,10 @@ def process_single_protein(
         print(f"  {pdb_id}: too short ({len(residues)} residues), skipping")
         return None
 
-    return _compute_protein_stats(pdb_id, residues, W_grid, phi_grid, psi_grid)
+    result = _compute_protein_stats(pdb_id, residues, W_grid, phi_grid, psi_grid)
+    if result is not None:
+        result["is_nmr"] = is_nmr
+    return result
 
 
 def _compute_protein_stats(
@@ -306,19 +327,31 @@ def _compute_protein_stats(
     }
 
 
+def _stats_block(results: List[Dict]) -> Tuple[float, float, float, float]:
+    """Compute (mean, std, cv, median) for BPS/L from a list of results."""
+    vals = np.array([r["bps_l"] for r in results])
+    m = float(np.mean(vals))
+    s = float(np.std(vals))
+    cv = s / m * 100 if m > 0 else 0.0
+    med = float(np.median(vals))
+    return m, s, cv, med
+
+
 def write_report(
     results: List[Dict],
     output_path: str,
     data_source: str,
+    filtered_results: Optional[List[Dict]] = None,
 ) -> None:
-    """Write PDB validation report as markdown."""
+    """Write PDB validation report as markdown.
+
+    If filtered_results is provided, includes a filtered statistics section
+    alongside the unfiltered (all-structures) statistics.
+    """
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
 
+    mean_bps_l, std_bps_l, cv_bps_l, median_bps_l = _stats_block(results)
     bps_l_values = np.array([r["bps_l"] for r in results])
-    mean_bps_l = float(np.mean(bps_l_values))
-    std_bps_l = float(np.std(bps_l_values))
-    cv_bps_l = std_bps_l / mean_bps_l * 100 if mean_bps_l > 0 else 0.0
-    median_bps_l = float(np.median(bps_l_values))
 
     lines = [
         "# PDB Validation Report: BPS/L",
@@ -326,7 +359,43 @@ def write_report(
         f"**Data source:** {data_source}",
         f"**Structures processed:** {len(results)}",
         "",
-        "## Summary Statistics",
+    ]
+
+    # Filtered statistics (quality-controlled subset)
+    if filtered_results and len(filtered_results) > 0:
+        f_mean, f_std, f_cv, f_median = _stats_block(filtered_results)
+        f_vals = np.array([r["bps_l"] for r in filtered_results])
+        n_nmr = sum(1 for r in results if r.get("is_nmr", False))
+        n_short = sum(1 for r in results if r["length"] < 50)
+        lines.extend([
+            "## Filtered Statistics (X-ray, length >= 50)",
+            "",
+            f"**Quality filters applied:** exclude NMR ({n_nmr} removed), "
+            f"exclude chains < 50 residues ({n_short} removed)",
+            f"**Structures after filtering:** {len(filtered_results)}",
+            "",
+            f"| Metric | Value |",
+            f"|--------|-------|",
+            f"| Mean BPS/L | {f_mean:.3f} |",
+            f"| Std BPS/L | {f_std:.3f} |",
+            f"| CV | {f_cv:.1f}% |",
+            f"| Median BPS/L | {f_median:.3f} |",
+            f"| Min BPS/L | {min(f_vals):.3f} |",
+            f"| Max BPS/L | {max(f_vals):.3f} |",
+            "",
+            "## Comparison to AlphaFold Target (filtered)",
+            "",
+            f"| | Value |",
+            f"|---|-------|",
+            f"| AlphaFold target | 0.202 +/- 0.004 |",
+            f"| PDB filtered | {f_mean:.3f} +/- {f_std:.3f} |",
+            f"| Delta | {abs(f_mean - 0.202):.3f} ({abs(f_mean - 0.202) / 0.202 * 100:.1f}%) |",
+            "",
+        ])
+
+    # Unfiltered statistics
+    lines.extend([
+        "## Unfiltered Statistics (all structures)",
         "",
         f"| Metric | Value |",
         f"|--------|-------|",
@@ -337,18 +406,10 @@ def write_report(
         f"| Min BPS/L | {min(bps_l_values):.3f} |",
         f"| Max BPS/L | {max(bps_l_values):.3f} |",
         "",
-        "## Comparison to AlphaFold Target",
-        "",
-        f"| | Value |",
-        f"|---|-------|",
-        f"| AlphaFold target | 0.202 +/- 0.004 |",
-        f"| PDB experimental | {mean_bps_l:.3f} +/- {std_bps_l:.3f} |",
-        f"| Delta | {abs(mean_bps_l - 0.202):.3f} ({abs(mean_bps_l - 0.202) / 0.202 * 100:.1f}%) |",
-        "",
-        "## BPS/L Histogram",
+        "## BPS/L Histogram (all structures)",
         "",
         "```",
-    ]
+    ])
 
     # ASCII histogram
     hist, bin_edges = np.histogram(bps_l_values, bins=20)
@@ -380,8 +441,8 @@ def write_report(
     lines.extend([
         "## Per-Structure Results",
         "",
-        "| # | Name | Length | BPS/L | alpha | beta | other |",
-        "|---|------|--------|-------|-------|------|-------|",
+        "| # | Name | Length | BPS/L | alpha | beta | other | NMR |",
+        "|---|------|--------|-------|-------|------|-------|-----|",
     ])
     show = results[:30]
     if len(results) > 35:
@@ -389,23 +450,23 @@ def write_report(
         lines.extend(
             f"| {i+1} | {r['name']} | {r['length']} | {r['bps_l']:.3f} "
             f"| {r['alpha_frac']:.1%} | {r['beta_frac']:.1%} "
-            f"| {r['other_frac']:.1%} |"
+            f"| {r['other_frac']:.1%} | {'Y' if r.get('is_nmr') else ''} |"
             for i, r in enumerate(show)
         )
-        lines.append(f"| ... | ... | ... | ... | ... | ... | ... |")
+        lines.append(f"| ... | ... | ... | ... | ... | ... | ... | ... |")
         for i, r in enumerate(results[-5:]):
             idx = len(results) - 5 + i
             lines.append(
                 f"| {idx+1} | {r['name']} | {r['length']} | {r['bps_l']:.3f} "
                 f"| {r['alpha_frac']:.1%} | {r['beta_frac']:.1%} "
-                f"| {r['other_frac']:.1%} |"
+                f"| {r['other_frac']:.1%} | {'Y' if r.get('is_nmr') else ''} |"
             )
     else:
         for i, r in enumerate(results):
             lines.append(
                 f"| {i+1} | {r['name']} | {r['length']} | {r['bps_l']:.3f} "
                 f"| {r['alpha_frac']:.1%} | {r['beta_frac']:.1%} "
-                f"| {r['other_frac']:.1%} |"
+                f"| {r['other_frac']:.1%} | {'Y' if r.get('is_nmr') else ''} |"
             )
     lines.append("")
 
@@ -538,13 +599,20 @@ def main() -> None:
         print("  Ensure PDB files are in data/pdb_cache/ or network is available.")
         sys.exit(1)
 
-    # --- Report ---
+    # --- Quality filtering: exclude NMR and short chains ---
+    MIN_LENGTH = 50
+    filtered = [r for r in results
+                if not r.get("is_nmr", False) and r["length"] >= MIN_LENGTH]
+    n_nmr = sum(1 for r in results if r.get("is_nmr", False))
+    n_short = sum(1 for r in results if r["length"] < MIN_LENGTH)
+
+    # --- Unfiltered report ---
     bps_l_values = np.array([r["bps_l"] for r in results])
     mean_bps_l = float(np.mean(bps_l_values))
     std_bps_l = float(np.std(bps_l_values))
     cv_bps_l = std_bps_l / mean_bps_l * 100 if mean_bps_l > 0 else 0.0
 
-    print("Results:")
+    print("Unfiltered results (all structures):")
     print(f"  Structures: {len(results)}")
     print(f"  Mean BPS/L: {mean_bps_l:.3f}")
     print(f"  Std BPS/L:  {std_bps_l:.3f}")
@@ -552,22 +620,52 @@ def main() -> None:
     print(f"  Median:     {float(np.median(bps_l_values)):.3f}")
     print(f"  Range:      [{min(bps_l_values):.3f}, {max(bps_l_values):.3f}]")
     print()
-    print(f"  AlphaFold target: 0.202 +/- 0.004")
-    print(f"  PDB target:       0.207 +/- 0.05")
-    delta = abs(mean_bps_l - 0.207)
-    print(f"  Delta from PDB target: {delta:.3f} ({delta / 0.207 * 100:.1f}%)")
+
+    # --- Filtered report ---
+    print(f"Quality filters: exclude NMR ({n_nmr}), "
+          f"exclude length < {MIN_LENGTH} ({n_short})")
     print()
 
-    write_report(results, report_path, data_source)
+    if filtered:
+        f_vals = np.array([r["bps_l"] for r in filtered])
+        f_mean = float(np.mean(f_vals))
+        f_std = float(np.std(f_vals))
+        f_cv = f_std / f_mean * 100 if f_mean > 0 else 0.0
 
-    # Validation check: user-specified target range [0.18, 0.23]
-    if 0.18 <= mean_bps_l <= 0.23:
-        print(f"  PASS: Mean BPS/L = {mean_bps_l:.3f} in target range [0.18, 0.23]")
-    elif 0.10 <= mean_bps_l <= 0.35:
-        print(f"  WARN: Mean BPS/L = {mean_bps_l:.3f} in broad range [0.10, 0.35] "
+        print("Filtered results (X-ray, length >= 50):")
+        print(f"  Structures: {len(filtered)}")
+        print(f"  Mean BPS/L: {f_mean:.3f}")
+        print(f"  Std BPS/L:  {f_std:.3f}")
+        print(f"  CV:         {f_cv:.1f}%")
+        print(f"  Median:     {float(np.median(f_vals)):.3f}")
+        print(f"  Range:      [{min(f_vals):.3f}, {max(f_vals):.3f}]")
+        print()
+        print(f"  AlphaFold target: 0.202 +/- 0.004")
+        print(f"  PDB target:       0.207 +/- 0.05")
+        delta_f = abs(f_mean - 0.207)
+        print(f"  Delta from PDB target: {delta_f:.3f} "
+              f"({delta_f / 0.207 * 100:.1f}%)")
+        print()
+    else:
+        f_mean = mean_bps_l
+        filtered = None
+
+    write_report(results, report_path, data_source,
+                 filtered_results=filtered if filtered else None)
+
+    # Validation check on filtered mean
+    check_val = f_mean if filtered else mean_bps_l
+    label = "filtered" if filtered else "unfiltered"
+    if 0.18 <= check_val <= 0.23:
+        print(f"  PASS: {label.capitalize()} mean BPS/L = {check_val:.3f} "
+              f"in target range [0.18, 0.23]")
+    elif 0.10 <= check_val <= 0.35:
+        print(f"  WARN: {label.capitalize()} mean BPS/L = {check_val:.3f} "
+              f"in broad range [0.10, 0.35] "
               f"but outside strict target [0.18, 0.23]")
     else:
-        print(f"  FAIL: Mean BPS/L = {mean_bps_l:.3f} outside [0.10, 0.35]")
+        print(f"  FAIL: {label.capitalize()} mean BPS/L = {check_val:.3f} "
+              f"outside [0.10, 0.35]")
         print("  Bug in superpotential or dihedral extraction.")
 
     print()
