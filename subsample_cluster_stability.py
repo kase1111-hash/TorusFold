@@ -25,9 +25,10 @@ Also reports:
 
 Usage:
   python subsample_cluster_stability.py [--data DIR] [--sample N]
-         [--n-subsamples 5] [--subsample-frac 0.8] [--output DIR]
+         [--n-subsamples 5] [--subsample-frac 0.8] [--w-path FILE]
+         [--output DIR]
 
-Reads: alphafold_cache/, results/superpotential_W.npz
+Reads: alphafold_cache/, results/superpotential_W.npz (or --w-path)
 Writes: results/subsample_cluster_stability_report.md
 """
 
@@ -233,33 +234,39 @@ def cluster_loops(features, min_cluster_size=50, min_samples=10):
     return labels
 
 
-def jaccard_similarity(labels_a, labels_b):
+def jaccard_similarity(labels_a, labels_b, n_pairs=500000):
     """
-    Jaccard-style cluster agreement on shared indices.
-    For each pair of shared points: same_cluster_in_both / (same_in_either).
+    Jaccard-style cluster agreement on shared points via random pair sampling.
+
+    For randomly sampled pairs of points: counts pairs where both are in the
+    same cluster in at least one partition, then measures what fraction agree
+    in both. Excludes noise points (label == -1) from "same cluster" matches.
+
+    Uses random pair sampling for O(n_pairs) instead of O(n²) brute force.
     """
     n = len(labels_a)
     if n < 2:
         return 0.0
-    # Count pairs
+
+    rng = np.random.default_rng(42)
+    n_pairs = min(n_pairs, n * (n - 1) // 2)
+
+    # Generate random pairs
+    pi = rng.integers(0, n, size=n_pairs)
+    pj = rng.integers(0, n - 1, size=n_pairs)
+    pj[pj >= pi] += 1  # ensure i != j
+
     both_same = 0
     either_same = 0
-    # Subsample pairs for speed if n is large
-    if n > 5000:
-        rng = np.random.default_rng(42)
-        idx = rng.choice(n, 5000, replace=False)
-        labels_a = labels_a[idx]
-        labels_b = labels_b[idx]
-        n = 5000
 
-    for i in range(n):
-        for j in range(i + 1, min(i + 200, n)):  # local window for speed
-            sa = (labels_a[i] == labels_a[j]) and labels_a[i] != -1
-            sb = (labels_b[i] == labels_b[j]) and labels_b[i] != -1
-            if sa or sb:
-                either_same += 1
-                if sa and sb:
-                    both_same += 1
+    sa = (labels_a[pi] == labels_a[pj]) & (labels_a[pi] != -1)
+    sb = (labels_b[pi] == labels_b[pj]) & (labels_b[pi] != -1)
+    either_mask = sa | sb
+    both_mask = sa & sb
+
+    either_same = int(np.sum(either_mask))
+    both_same = int(np.sum(both_mask))
+
     if either_same == 0:
         return 0.0
     return both_same / either_same
@@ -286,21 +293,47 @@ def main():
                         help="HDBSCAN min_samples (default: 10)")
     parser.add_argument("--output", default="results",
                         help="Output directory")
+    parser.add_argument("--w-path", default=None,
+                        help="Explicit path to superpotential_W.npz "
+                             "(auto-detected if not specified)")
     args = parser.parse_args()
 
     print("=" * 60)
     print("  TorusFold: 5× Subsample Cluster Stability Test")
     print("=" * 60)
 
-    # Load W
-    w_path = os.path.join(args.output, "superpotential_W.npz")
-    if not os.path.exists(w_path):
-        print(f"ERROR: W not found at {w_path}")
+    # Load W (search multiple locations)
+    w_path = args.w_path or os.path.join(args.output, "superpotential_W.npz")
+    W_grid = None
+
+    if os.path.exists(w_path):
+        data = np.load(w_path)
+        W_grid = data['grid']
+        print(f"  Loaded W: {W_grid.shape[0]}x{W_grid.shape[0]} from {w_path}")
+    else:
+        search_paths = [
+            os.path.join(args.output, "superpotential_W.npz"),
+            os.path.join(args.data, '..', 'results', 'superpotential_W.npz'),
+            os.path.join(args.data, '..', 'superpotential_W.npz'),
+            'superpotential_W.npz',
+        ]
+        for sp in search_paths:
+            sp = os.path.normpath(sp)
+            if os.path.exists(sp):
+                print(f"  Found W at {sp}")
+                data = np.load(sp)
+                W_grid = data['grid']
+                print(f"  Loaded W: {W_grid.shape[0]}x{W_grid.shape[0]}")
+                break
+
+    if W_grid is None:
+        print(f"ERROR: superpotential_W.npz not found.")
+        print(f"  Searched: {w_path}")
+        print(f"  Use --w-path to specify the location, e.g.:")
+        print(f"    python subsample_cluster_stability.py --w-path path/to/superpotential_W.npz")
         sys.exit(1)
-    data = np.load(w_path)
-    W_grid = data['grid']
+
     grid_size = W_grid.shape[0]
-    print(f"  Loaded W: {grid_size}x{grid_size}")
 
     # Discover files
     organisms = discover_files(args.data)
@@ -313,7 +346,6 @@ def main():
     print("\n  Phase 1: Extracting loop segments...")
 
     all_loops = []       # list of 8-dim feature vectors
-    loop_sources = []    # (organism, file_index, loop_index_in_protein)
     n_processed = 0
     n_skipped = 0
     MAX_FILE_SIZE = 5 * 1024 * 1024
@@ -326,6 +358,7 @@ def main():
 
         print(f"    {org_name} ({len(files)} files)...", end=" ", flush=True)
         org_loops = 0
+        org_errors = 0
 
         for fi, filepath in enumerate(files):
             try:
@@ -340,17 +373,27 @@ def main():
                     continue
 
                 loops = extract_loop_segments(pp, ss, W_grid, grid_size)
-                for li, feat in enumerate(loops):
+                for feat in loops:
                     all_loops.append(feat)
-                    loop_sources.append((org_name, fi, li))
                     org_loops += 1
 
                 n_processed += 1
 
-            except Exception:
+            except Exception as e:
                 n_skipped += 1
+                org_errors += 1
+                if org_errors <= 3:
+                    fname = os.path.basename(filepath)
+                    print(f"\n      WARNING: {fname}: {type(e).__name__}: {e}",
+                          end="", flush=True)
 
-        print(f"{org_loops} loops")
+            # Progress for large organisms
+            if (fi + 1) % 2000 == 0:
+                print(f"\n      [{fi+1}/{len(files)}] {org_loops} loops...",
+                      end="", flush=True)
+
+        error_note = f" ({org_errors} errors)" if org_errors > 0 else ""
+        print(f"{org_loops} loops{error_note}")
 
     n_loops = len(all_loops)
     print(f"\n  Total: {n_processed} proteins, {n_loops} loop segments, "
@@ -627,7 +670,12 @@ def main():
                 "by comparing cluster assignments across subsamples "
                 "using the Adjusted Rand Index (ARI), which corrects "
                 "for chance agreement and ranges from −1 to 1 "
-                "(1 = perfect agreement, 0 = random).\n")
+                "(1 = perfect agreement, 0 = random). Jaccard similarity "
+                "was computed via random pair sampling (500k pairs): "
+                "the fraction of randomly sampled point-pairs that are "
+                "co-clustered in both partitions, among those co-clustered "
+                "in at least one. Noise points (HDBSCAN label = −1) "
+                "are excluded from co-cluster counts.\n")
 
     print(f"\n  Report: {report_path}")
     print("  Done.")

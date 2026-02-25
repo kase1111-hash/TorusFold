@@ -20,9 +20,9 @@ If all W constructions give similar ratios and CV, the results are
 W-independent and the paper's claims are robust.
 
 Usage:
-  python w_independence.py [--sample N]
+  python w_independence.py [--sample N] [--w-path FILE]
 
-Reads: alphafold_cache/, results/superpotential_W.npz
+Reads: alphafold_cache/, results/superpotential_W.npz (or --w-path)
 Writes: results/w_independence_report.md
 """
 
@@ -249,12 +249,19 @@ def extract_all_angles_from_files(files, max_files=None):
         files = [files[i] for i in idx]
 
     all_angles = []
+    n_errors = 0
     for f in files:
         try:
             pp, _ = extract_angles(f)
             all_angles.extend(pp)
-        except Exception:
-            pass
+        except Exception as e:
+            n_errors += 1
+            if n_errors <= 3:
+                fname = os.path.basename(f)
+                print(f"\n    WARNING (W build): {fname}: "
+                      f"{type(e).__name__}: {e}", end="", flush=True)
+    if n_errors > 3:
+        print(f"\n    ... and {n_errors - 3} more errors", end="", flush=True)
     return all_angles
 
 
@@ -269,10 +276,11 @@ def run_test(label, W_grid, grid_size, test_files, organisms_map, rng,
     Returns summary dict.
     """
     # BPS/L for all test files
-    protein_results = []
+    bpsl_results = []       # [(bpsl, organism, filepath)]
     org_bpsl = defaultdict(list)
+    n_errors = 0
 
-    for filepath, organism in test_files:
+    for fi, (filepath, organism) in enumerate(test_files):
         try:
             pp, ss = extract_angles(filepath)
             if len(pp) < 50:
@@ -280,19 +288,29 @@ def run_test(label, W_grid, grid_size, test_files, organisms_map, rng,
             phi = np.array([p[0] for p in pp])
             psi = np.array([p[1] for p in pp])
             bpsl = compute_bps_l(phi, psi, W_grid, grid_size)
-            protein_results.append({
-                'bpsl': bpsl, 'organism': organism,
-                'phi_psi': pp, 'ss': ss,
-            })
+            bpsl_results.append((bpsl, organism, filepath))
             org_bpsl[organism].append(bpsl)
-        except Exception:
-            pass
+        except Exception as e:
+            n_errors += 1
+            if n_errors <= 3:
+                fname = os.path.basename(filepath)
+                print(f"\n    WARNING: {fname}: {type(e).__name__}: {e}",
+                      end="", flush=True)
 
-    if len(protein_results) < 20:
+        if (fi + 1) % 100 == 0:
+            print(f"\r    [{fi+1}/{len(test_files)}] "
+                  f"{len(bpsl_results)} classified...",
+                  end="", flush=True)
+
+    if bpsl_results:
+        print(f"\r    {len(bpsl_results)} proteins classified"
+              f"{f' ({n_errors} errors)' if n_errors else ''}    ")
+
+    if len(bpsl_results) < 20:
         return None
 
     # Global stats
-    all_bpsl = np.array([r['bpsl'] for r in protein_results])
+    all_bpsl = np.array([r[0] for r in bpsl_results])
     global_mean = float(np.mean(all_bpsl))
     global_cv = float(np.std(all_bpsl) / np.mean(all_bpsl) * 100)
 
@@ -307,20 +325,26 @@ def run_test(label, W_grid, grid_size, test_files, organisms_map, rng,
         om = np.array(list(org_means.values()))
         cross_org_cv = float(np.std(om) / np.mean(om) * 100)
 
-    # Three-level + segment decomposition (sample)
-    decomp_indices = rng.choice(len(protein_results),
-                                min(decomp_sample, len(protein_results)),
+    # Three-level + segment decomposition (re-read files for subsample only)
+    decomp_indices = rng.choice(len(bpsl_results),
+                                min(decomp_sample, len(bpsl_results)),
                                 replace=False)
     real_v, seg_v, m1_v, shuf_v = [], [], [], []
-    for idx in decomp_indices:
-        r = protein_results[idx]
-        if len(r['phi_psi']) < 50:
-            continue
-        d = evaluate_protein(r['phi_psi'], r['ss'], W_grid, grid_size, rng, n_trials)
-        real_v.append(d['real'])
-        seg_v.append(d['segment'])
-        m1_v.append(d['markov1'])
-        shuf_v.append(d['shuffled'])
+    print(f"    Decomposing {len(decomp_indices)} proteins...", end=" ", flush=True)
+    for di, idx in enumerate(decomp_indices):
+        _, _, filepath = bpsl_results[idx]
+        try:
+            pp, ss = extract_angles(filepath)
+            if len(pp) < 50:
+                continue
+            d = evaluate_protein(pp, ss, W_grid, grid_size, rng, n_trials)
+            real_v.append(d['real'])
+            seg_v.append(d['segment'])
+            m1_v.append(d['markov1'])
+            shuf_v.append(d['shuffled'])
+        except Exception:
+            pass
+    print(f"done ({len(real_v)} successful)")
 
     decomp = {}
     if real_v:
@@ -336,7 +360,7 @@ def run_test(label, W_grid, grid_size, test_files, organisms_map, rng,
 
     return {
         'label': label,
-        'n_proteins': len(protein_results),
+        'n_proteins': len(bpsl_results),
         'n_organisms': len(org_means),
         'global_mean': global_mean,
         'global_cv': global_cv,
@@ -358,6 +382,9 @@ def main():
                         help="Structures for W building (default: 300)")
     parser.add_argument("--output", default="results",
                         help="Output directory")
+    parser.add_argument("--w-path", default=None,
+                        help="Explicit path to superpotential_W.npz "
+                             "(auto-detected if not specified)")
     args = parser.parse_args()
 
     print("=" * 60)
@@ -389,11 +416,34 @@ def main():
     print("  TEST 0: Baseline (cached W from full dataset)")
     print("=" * 60)
 
-    w_cache = os.path.join(args.output, "superpotential_W.npz")
+    w_cache = args.w_path or os.path.join(args.output, "superpotential_W.npz")
+    W_baseline = None
+    gs_baseline = 0
+
     if os.path.exists(w_cache):
         data = np.load(w_cache)
         W_baseline = data['grid']
         gs_baseline = W_baseline.shape[0]
+        print(f"  Loaded baseline W: {gs_baseline}x{gs_baseline} from {w_cache}")
+    else:
+        # Search common locations
+        search_paths = [
+            os.path.join(args.output, "superpotential_W.npz"),
+            os.path.join(args.data, '..', 'results', 'superpotential_W.npz'),
+            os.path.join(args.data, '..', 'superpotential_W.npz'),
+            'superpotential_W.npz',
+        ]
+        for sp in search_paths:
+            sp = os.path.normpath(sp)
+            if os.path.exists(sp):
+                print(f"  Found baseline W at {sp}")
+                data = np.load(sp)
+                W_baseline = data['grid']
+                gs_baseline = W_baseline.shape[0]
+                print(f"  Loaded: {gs_baseline}x{gs_baseline}")
+                break
+
+    if W_baseline is not None:
         test_set = all_files_shuffled[:args.sample]
         r = run_test("Baseline (full W)", W_baseline, gs_baseline,
                      test_set, organisms, rng)
@@ -406,6 +456,9 @@ def main():
                       f"S/Real = {r['decomp']['s_real']:.2f}x")
     else:
         print("  WARNING: No cached W found. Skipping baseline.")
+        print(f"  Searched: {w_cache}")
+        print(f"  Use --w-path to specify, e.g.:")
+        print(f"    python w_independence.py --w-path path/to/superpotential_W.npz")
 
     # ══════════════════════════════════════════════════════════════
     # TEST 1: 10% train, 90% test
@@ -504,27 +557,36 @@ def main():
     pdb_angles = []
     if pdb_files:
         print(f"  Found {len(pdb_files)} PDB files")
-        # Extract angles from PDB files — try CIF parser on .pdb too
+        n_pdb_errors = 0
         for pf in pdb_files:
             try:
                 pp, _ = extract_angles(str(pf))
                 pdb_angles.extend(pp)
-            except Exception:
-                pass
-        print(f"  Collected {len(pdb_angles)} angles from PDB")
+            except Exception as e:
+                n_pdb_errors += 1
+                if n_pdb_errors <= 3:
+                    print(f"    WARNING (PDB): {pf.name}: "
+                          f"{type(e).__name__}: {e}")
+        print(f"  Collected {len(pdb_angles)} angles from PDB"
+              f"{f' ({n_pdb_errors} errors)' if n_pdb_errors else ''}")
 
     # Also check data/pdb_cache
     pdb_cache = Path("data/pdb_cache")
     if pdb_cache.exists():
         pdb_cache_files = list(pdb_cache.glob("*.pdb")) + list(pdb_cache.glob("*.cif"))
         print(f"  Found {len(pdb_cache_files)} files in pdb_cache")
+        n_cache_errors = 0
         for pf in pdb_cache_files:
             try:
                 pp, _ = extract_angles(str(pf))
                 pdb_angles.extend(pp)
-            except Exception:
-                pass
-        print(f"  Total PDB angles: {len(pdb_angles)}")
+            except Exception as e:
+                n_cache_errors += 1
+                if n_cache_errors <= 3:
+                    print(f"    WARNING (cache): {pf.name}: "
+                          f"{type(e).__name__}: {e}")
+        print(f"  Total PDB angles: {len(pdb_angles)}"
+              f"{f' ({n_cache_errors} cache errors)' if n_cache_errors else ''}")
 
     if len(pdb_angles) > 1000:
         W_pdb, gs_pdb = build_W_from_angles(pdb_angles)
@@ -603,13 +665,15 @@ def main():
             sr_mean = np.mean(seg_reals)
             sr_std = np.std(seg_reals)
             sr_cv = sr_std / sr_mean * 100 if sr_mean > 0 else 999
+            suppression_pct = (sr_mean - 1) * 100 if sr_mean > 1 else 0
             f.write(f"**Seg/Real ratio across W constructions:** "
                     f"{sr_mean:.2f} +/- {sr_std:.2f} (CV = {sr_cv:.0f}%)\n\n")
 
             if sr_cv < 15:
-                f.write("The Seg/Real ratio (intra-basin coherence) is **stable** across "
-                        "W constructions. The 41% roughness suppression from intra-basin "
-                        "coherence is a property of proteins, not of the histogram.\n\n")
+                f.write(f"The Seg/Real ratio (intra-basin coherence) is **stable** across "
+                        f"W constructions. The {suppression_pct:.0f}% roughness suppression "
+                        f"from intra-basin coherence is a property of proteins, not of the "
+                        f"histogram.\n\n")
             else:
                 f.write("The Seg/Real ratio varies across W constructions, suggesting "
                         "partial dependence on landscape construction.\n\n")
