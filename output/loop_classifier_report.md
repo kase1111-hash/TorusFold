@@ -1,8 +1,70 @@
 # Loop Path Classifier Report
 
-**Status:** Insufficient data
-**Reason:** Only 6 classified loops — need at least 10
-**Classified loops available:** 6
+**Loops used:** 80 (from tight families, noise excluded)
+**Families:** 15
+**Cross-validation:** 3-fold stratified
 
-The classifier requires more loop data with cluster assignments.
-Run the taxonomy pipeline on more PDB structures first.
+## Overall Accuracy
+
+**Accuracy: 71.2%**
+**Target: >60%**
+**Verdict: PASS**
+
+## Per-Family Precision and Recall
+
+| Family | Precision | Recall | F1 | Support |
+|--------|-----------|--------|----|---------|
+| 1 | 1.00 | 1.00 | 1.00 | 4.0 |
+| 2 | 1.00 | 1.00 | 1.00 | 3.0 |
+| 6 | 1.00 | 1.00 | 1.00 | 3.0 |
+| 8 | 0.17 | 0.14 | 0.15 | 7.0 |
+| 9 | 0.90 | 1.00 | 0.95 | 9.0 |
+| 12 | 0.88 | 0.94 | 0.91 | 16.0 |
+| 13 | 1.00 | 1.00 | 1.00 | 3.0 |
+| 17 | 0.47 | 0.62 | 0.53 | 13.0 |
+| 23 | 0.67 | 0.67 | 0.67 | 3.0 |
+| 26 | 0.75 | 1.00 | 0.86 | 3.0 |
+| 28 | 1.00 | 0.33 | 0.50 | 3.0 |
+| 32 | 1.00 | 0.67 | 0.80 | 3.0 |
+| 33 | 0.75 | 1.00 | 0.86 | 3.0 |
+| 35 | 0.00 | 0.00 | 0.00 | 3.0 |
+| 36 | 0.00 | 0.00 | 0.00 | 4.0 |
+
+## Top 10 Feature Importances
+
+| Rank | Feature | Importance |
+|------|---------|------------|
+| 1 | loop_len | 0.197 |
+| 2 | c_term_aa | 0.123 |
+| 3 | n_term_aa | 0.092 |
+| 4 | direction | 0.065 |
+| 5 | AA_GLY | 0.064 |
+| 6 | AA_ASN | 0.049 |
+| 7 | gly_count | 0.041 |
+| 8 | AA_ASP | 0.037 |
+| 9 | AA_PRO | 0.035 |
+| 10 | AA_LEU | 0.032 |
+
+## Confusion Matrix
+
+| Predicted -> | 1 | 2 | 6 | 8 | 9 | 12 | 13 | 17 | 23 | 26 | 28 | 32 | 33 | 35 | 36 |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| **1** | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| **2** | 0 | 3 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| **6** | 0 | 0 | 3 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| **8** | 0 | 0 | 0 | 1 | 0 | 0 | 0 | 5 | 0 | 0 | 0 | 0 | 0 | 0 | 1 |
+| **9** | 0 | 0 | 0 | 0 | 9 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| **12** | 0 | 0 | 0 | 0 | 1 | 15 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| **13** | 0 | 0 | 0 | 0 | 0 | 0 | 3 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| **17** | 0 | 0 | 0 | 3 | 0 | 0 | 0 | 8 | 0 | 0 | 0 | 0 | 0 | 1 | 1 |
+| **23** | 0 | 0 | 0 | 1 | 0 | 0 | 0 | 0 | 2 | 0 | 0 | 0 | 0 | 0 | 0 |
+| **26** | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 3 | 0 | 0 | 0 | 0 | 0 |
+| **28** | 0 | 0 | 0 | 0 | 0 | 2 | 0 | 0 | 0 | 0 | 1 | 0 | 0 | 0 | 0 |
+| **32** | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 1 | 0 | 2 | 0 | 0 | 0 |
+| **33** | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 3 | 0 | 0 |
+| **35** | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 2 | 1 | 0 | 0 | 0 | 0 | 0 | 0 |
+| **36** | 0 | 0 | 0 | 1 | 0 | 0 | 0 | 2 | 0 | 0 | 0 | 0 | 1 | 0 | 0 |
+
+## Verdict
+
+Sequence-to-path-family mapping EXISTS. Loop family can be predicted from amino acid sequence with >60% accuracy.
