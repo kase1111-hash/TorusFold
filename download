@@ -1,0 +1,44 @@
+# Data caches (large, regenerable)
+data/alphafold_cache/
+data/pdb_cache/
+pdb_cache/
+alphafold_cache/
+alphafold_bps_results/
+*.cif
+*.pdb
+
+# Generated outputs
+*_output/
+*.db
+*.sqlite
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+.eggs/
+*.egg
+.venv/
+venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Keep output directories but not contents
+!data/.gitkeep
