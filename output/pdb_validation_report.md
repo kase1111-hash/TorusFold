@@ -75,6 +75,27 @@ Maximum separation occurs with the least-smoothed (realistic) W.
 
 **Note:** The Markov/Real ratio decreases monotonically with smoothing. The smooth W used for the low BPS/L value acts as a low-pass filter isolating inter-basin transitions — since Markov chains preserve transition frequencies by construction, M/R collapses to ~1.0. The realistic W reveals intra-basin conformational coherence that Markov chains cannot reproduce.
 
+## Fold-Class Breakdown (Realistic W)
+
+BPS/L by SCOP-like fold class, classified from computed SS fractions.
+
+| Fold class | N | Mean BPS/L | Std | CV% | Median | alpha% | beta% |
+|------------|---|------------|-----|-----|--------|--------|-------|
+| all-alpha | 30 | 0.782 | 0.210 | 26.8% | 0.814 | 72.2% | 5.9% |
+| all-beta | 31 | 1.076 | 0.195 | 18.2% | 1.042 | 11.4% | 48.5% |
+| alpha/beta | 145 | 0.953 | 0.140 | 14.7% | 0.951 | 40.8% | 25.4% |
+| alpha+beta | 29 | 1.028 | 0.145 | 14.1% | 1.010 | 30.8% | 28.8% |
+
+**Key separations (Cohen's d):**
+- all-alpha vs all-beta: d = -1.45 (strong separation)
+- all-alpha vs alpha/beta: d = -0.96 (large effect)
+- all-beta vs alpha/beta: d = +0.72 (medium effect)
+
+All-alpha proteins have the lowest BPS/L (0.782) — alpha helices are conformationally
+smooth within the W landscape. All-beta proteins have the highest (1.076) — beta strands
+traverse more varied W terrain. The 0.294 spread between fold-class means is 1.65x the
+overall standard deviation, confirming fold-class separation persists with realistic W.
+
 ## Per-Structure Results
 
 | # | Name | Length | BPS/L | alpha | beta | other | NMR |
