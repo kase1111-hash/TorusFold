@@ -1,6 +1,7 @@
 # Data caches (large, regenerable)
 data/alphafold_cache/
 data/pdb_cache/
+data/rama_reference/
 pdb_cache/
 alphafold_cache/
 alphafold_bps_results/
