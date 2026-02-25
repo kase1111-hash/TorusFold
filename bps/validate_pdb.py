@@ -415,6 +415,32 @@ def write_report(
     print(f"  Report written to {output_path}")
 
 
+def _scan_cached_pdbs(cache_dir: str) -> List[Tuple[str, str]]:
+    """Scan the PDB cache for already-downloaded structures.
+
+    Returns (pdb_id, chain_id) pairs. Uses chain A by default;
+    overrides for known multi-chain files where chain A is not the
+    primary protein chain.
+    """
+    chain_overrides = {
+        "1LCD": "A",
+        "5UGO": "A",
+        "1LMB": "3",
+        "1CSE": "E",
+        "5CHA": "E",
+    }
+    entries = []
+    if not os.path.isdir(cache_dir):
+        return entries
+    for fname in sorted(os.listdir(cache_dir)):
+        if not fname.endswith(".pdb") or fname.startswith("SYN"):
+            continue
+        pdb_id = fname.replace(".pdb", "").upper()
+        chain_id = chain_overrides.get(pdb_id, "A")
+        entries.append((pdb_id, chain_id))
+    return entries
+
+
 def main() -> None:
     print("Priority 3: PDB Validation of BPS/L")
     print("=" * 55)
@@ -431,76 +457,85 @@ def main() -> None:
                               "output")
     report_path = os.path.join(output_dir, "pdb_validation_report.md")
 
-    # --- Tier 1: Try RCSB Search API ---
-    print("Tier 1: Querying RCSB Search API...")
-    api_entries = query_rcsb_search(max_results=200)
-
     results: List[Dict] = []
     data_source = ""
+    processed_ids: set = set()
 
-    if api_entries:
-        data_source = f"RCSB Search API ({len(api_entries)} entries)"
-        print(f"  Got {len(api_entries)} entries from RCSB")
-        for i, (pdb_id, chain_id) in enumerate(api_entries):
-            if (i + 1) % 20 == 0:
-                print(f"  Processing {i+1}/{len(api_entries)}...")
+    # --- Tier 0: Process already-cached PDB files ---
+    cached_entries = _scan_cached_pdbs(cache_dir)
+    if cached_entries:
+        print(f"Tier 0: Processing {len(cached_entries)} cached PDB files...")
+        for pdb_id, chain_id in cached_entries:
             result = process_single_protein(
                 pdb_id, chain_id, W_grid, phi_grid, psi_grid, cache_dir
             )
             if result is not None:
                 results.append(result)
-        print(f"  Successfully processed {len(results)}/{len(api_entries)}")
+                processed_ids.add(pdb_id)
+        print(f"  Successfully processed {len(results)}/{len(cached_entries)}")
+        data_source = f"Cached PDB files ({len(results)} structures)"
         print()
 
-    # --- Tier 2: Curated fallback ---
-    if len(results) < 20:
-        print("Tier 2: Using curated fallback list...")
-        data_source = f"Curated fallback list ({len(_CURATED_LIST)} entries)"
-        results = []
-        n_fail = 0
-        consecutive_fails = 0
-        for i, (pdb_id, chain_id, _) in enumerate(_CURATED_LIST):
-            # Fail fast: if first 5 all fail, network is probably blocked
-            if consecutive_fails >= 5 and len(results) == 0:
-                print(f"  First {consecutive_fails} downloads failed -- "
-                      f"network appears blocked, skipping tier 2")
-                break
-            if (i + 1) % 20 == 0:
-                print(f"  Processing {i+1}/{len(_CURATED_LIST)}...")
-            result = process_single_protein(
-                pdb_id, chain_id, W_grid, phi_grid, psi_grid, cache_dir
-            )
-            if result is not None:
-                results.append(result)
-                consecutive_fails = 0
-            else:
-                n_fail += 1
-                consecutive_fails += 1
-        print(f"  Successfully processed {len(results)}/{len(_CURATED_LIST)} "
-              f"({n_fail} failed)")
+    # --- Tier 1: Try RCSB Search API for additional structures ---
+    if len(results) < 100:
+        print("Tier 1: Querying RCSB Search API...")
+        api_entries = query_rcsb_search(max_results=200)
+        if api_entries:
+            new_entries = [(p, c) for p, c in api_entries if p not in processed_ids]
+            print(f"  Got {len(api_entries)} entries, {len(new_entries)} new")
+            n_new = 0
+            for i, (pdb_id, chain_id) in enumerate(new_entries):
+                if (i + 1) % 20 == 0:
+                    print(f"  Processing {i+1}/{len(new_entries)}...")
+                result = process_single_protein(
+                    pdb_id, chain_id, W_grid, phi_grid, psi_grid, cache_dir
+                )
+                if result is not None:
+                    results.append(result)
+                    processed_ids.add(pdb_id)
+                    n_new += 1
+            print(f"  Added {n_new} from RCSB API")
+            if n_new > 0:
+                data_source = (f"Cached ({len(cached_entries)}) + "
+                               f"RCSB API ({n_new})")
+        else:
+            print("  RCSB API unavailable")
         print()
 
-    # --- Tier 3: Synthetic fallback ---
-    if len(results) < 20:
-        print("Tier 3: Network unavailable -- generating synthetic proteins")
-        print("  (These mimic real protein backbone distributions for pipeline")
-        print("   validation. Re-run with network access for real PDB results.)")
-        print()
-        data_source = "Synthetic protein-like chains (offline mode)"
-
-        syn_proteins = _generate_synthetic_proteins(n_proteins=100)
-        results = []
-        for prot in syn_proteins:
-            result = _compute_protein_stats(
-                prot["name"], prot["residues"], W_grid, phi_grid, psi_grid
-            )
-            if result is not None:
-                results.append(result)
-        print(f"  Generated {len(results)} synthetic proteins")
-        print()
+    # --- Tier 2: Curated fallback list (download with GitHub fallback) ---
+    if len(results) < 50:
+        uncached = [(p, c, n) for p, c, n in _CURATED_LIST
+                    if p not in processed_ids]
+        if uncached:
+            print(f"Tier 2: Trying {len(uncached)} structures from curated list "
+                  f"(with GitHub mirror fallback)...")
+            n_new = 0
+            n_fail = 0
+            consecutive_fails = 0
+            for i, (pdb_id, chain_id, _) in enumerate(uncached):
+                if consecutive_fails >= 10 and n_new == 0:
+                    print(f"  {consecutive_fails} consecutive failures, "
+                          f"stopping tier 2")
+                    break
+                result = process_single_protein(
+                    pdb_id, chain_id, W_grid, phi_grid, psi_grid, cache_dir
+                )
+                if result is not None:
+                    results.append(result)
+                    processed_ids.add(pdb_id)
+                    n_new += 1
+                    consecutive_fails = 0
+                else:
+                    n_fail += 1
+                    consecutive_fails += 1
+            print(f"  Added {n_new} from curated list ({n_fail} failed)")
+            if n_new > 0 and "Curated" not in data_source:
+                data_source += f" + Curated ({n_new})"
+            print()
 
     if not results:
         print("ERROR: No structures processed successfully!")
+        print("  Ensure PDB files are in data/pdb_cache/ or network is available.")
         sys.exit(1)
 
     # --- Report ---
@@ -525,12 +560,15 @@ def main() -> None:
 
     write_report(results, report_path, data_source)
 
-    # Validation check
-    if 0.10 <= mean_bps_l <= 0.35:
-        print("  PASS: Mean BPS/L in expected range [0.10, 0.35]")
+    # Validation check: user-specified target range [0.18, 0.23]
+    if 0.18 <= mean_bps_l <= 0.23:
+        print(f"  PASS: Mean BPS/L = {mean_bps_l:.3f} in target range [0.18, 0.23]")
+    elif 0.10 <= mean_bps_l <= 0.35:
+        print(f"  WARN: Mean BPS/L = {mean_bps_l:.3f} in broad range [0.10, 0.35] "
+              f"but outside strict target [0.18, 0.23]")
     else:
-        print(f"  WARNING: Mean BPS/L = {mean_bps_l:.3f} outside [0.10, 0.35]")
-        print("  This may indicate a bug in the superpotential or extraction.")
+        print(f"  FAIL: Mean BPS/L = {mean_bps_l:.3f} outside [0.10, 0.35]")
+        print("  Bug in superpotential or dihedral extraction.")
 
     print()
     print("Priority 3 complete.")

@@ -23,7 +23,12 @@ _DEFAULT_CACHE = os.path.join(os.path.dirname(os.path.dirname(__file__)),
 
 
 def download_pdb(pdb_id: str, cache_dir: str = _DEFAULT_CACHE) -> Optional[str]:
-    """Download a PDB file from RCSB. Returns local path or None on failure.
+    """Download a PDB file from RCSB (with GitHub mirror fallback).
+
+    Tries sources in order:
+      1. Local cache (instant)
+      2. RCSB direct download
+      3. GitHub mirrors (biotite-dev/biotite, biopython/biopython test data)
 
     Parameters
     ----------
@@ -44,16 +49,33 @@ def download_pdb(pdb_id: str, cache_dir: str = _DEFAULT_CACHE) -> Optional[str]:
     if os.path.exists(local_path):
         return local_path
 
-    url = f"https://files.rcsb.org/download/{pdb_id}.pdb"
-    try:
-        urllib.request.urlretrieve(url, local_path)
-        return local_path
-    except (urllib.error.URLError, urllib.error.HTTPError, OSError) as e:
-        print(f"  Failed to download {pdb_id}: {e}")
-        # Clean up partial downloads
-        if os.path.exists(local_path):
+    # Source 1: RCSB direct download
+    urls = [
+        f"https://files.rcsb.org/download/{pdb_id}.pdb",
+    ]
+    # Source 2: GitHub mirrors (known test-data repos with PDB files)
+    pdb_lower = pdb_id.lower()
+    urls.extend([
+        f"https://raw.githubusercontent.com/biotite-dev/biotite/master/tests/structure/data/{pdb_lower}.pdb",
+        f"https://raw.githubusercontent.com/biopython/biopython/master/Tests/PDB/{pdb_lower}.pdb",
+    ])
+
+    for url in urls:
+        try:
+            urllib.request.urlretrieve(url, local_path)
+            # Verify it's a real PDB (not an HTML error page)
+            with open(local_path) as f:
+                first_line = f.readline()
+            if "HEADER" in first_line or "ATOM" in first_line or "REMARK" in first_line:
+                return local_path
+            # Not a valid PDB file
             os.remove(local_path)
-        return None
+        except (urllib.error.URLError, urllib.error.HTTPError, OSError):
+            if os.path.exists(local_path):
+                os.remove(local_path)
+            continue
+
+    return None
 
 
 def extract_dihedrals_pdb(pdb_path: str, chain_id: str = "A") -> List[Dict]:
