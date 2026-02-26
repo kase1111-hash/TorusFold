@@ -362,10 +362,12 @@ def compute_bps(W_values: NDArray) -> float:
 
 
 def compute_bps_per_residue(W_values: NDArray) -> float:
-    """Compute BPS/L = BPS / (L - 1).
+    """Compute BPS/L = BPS / L.
 
-    Normalizes by L-1 because BPS = sum of |delta W_i| over L-1
-    sequential differences from L residues.
+    Normalizes by L (number of residues) to match the primary pipeline
+    convention in bps_process.py. Note: some analysis scripts use
+    np.mean(np.abs(np.diff(w))) which divides by L-1 instead; for
+    typical chain lengths (L > 50) the difference is < 2%.
 
     Parameters
     ----------
@@ -380,7 +382,7 @@ def compute_bps_per_residue(W_values: NDArray) -> float:
     L = len(W_values)
     if L < 2:
         return 0.0
-    return compute_bps(W_values) / (L - 1)
+    return compute_bps(W_values) / L
 
 
 def smoothing_sensitivity(pdb_dir: Optional[str] = None,

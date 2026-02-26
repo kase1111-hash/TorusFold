@@ -46,10 +46,32 @@ Results under the narrow definition should be tested as a sensitivity control.
 
 ```
 BPS = Σ_{i=1}^{L-1} |W(φ_{i+1}, ψ_{i+1}) − W(φ_i, ψ_i)|
-BPS/L = BPS / (L − 1)
+BPS/L = BPS / L
 ```
 
-Divides by L−1 (the number of sequential differences), not by L (the number of residues).
+Divides by L (the number of residues). This is the convention used by the primary
+pipeline (`bps_process.py`, `bps_pdb_validate.py`, `bps_validate_controls.py`).
+
+**Known inconsistency:** Several analysis scripts use `np.mean(np.abs(np.diff(w)))`
+which divides by L−1 (number of differences) instead of L. For typical chain
+lengths (L > 50) the difference is < 2%, but this should be standardized.
+
+Scripts using /L: `bps_process.py`, `bps_pdb_validate.py`, `bps_validate_controls.py`
+Scripts using /(L-1): `generate_figures.py`, `within_foldclass_cv.py`, `designed_proteins.py`,
+`designed_seg_real.py`, `w_independence.py`, `higher_order_null.py`, `alphafold_pipeline.py`
+
+## W Formula and BPS/L Scale
+
+**CRITICAL:** The absolute value of BPS/L depends entirely on which W formula is used:
+
+| W Formula | Typical BPS/L | W Range | Pipeline |
+|-----------|---------------|---------|----------|
+| W = −√P (von Mises) | ~0.197 | negative | `bps_process.py`, `bps_pdb_validate.py`, `bps_validate_controls.py` |
+| W = −ln(P + ε) (histogram) | ~2.2 | [5.48, 16.12] | `generate_figures.py`, `within_foldclass_cv.py`, `bps/superpotential.py`, `designed_proteins.py` |
+
+The −√P pipeline produces the headline BPS/L ≈ 0.202 ± 0.004 result.
+The −ln(P + ε) pipeline produces BPS/L ≈ 2.2 — this is NOT a bug but a different gauge.
+The three-level decomposition ratio (Real:Markov:Shuffled) is invariant across both.
 
 ## Quality Thresholds
 
