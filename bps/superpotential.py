@@ -392,7 +392,7 @@ if __name__ == "__main__":
         "beta-sheet center":  (-120, 130),
         "ppII center":        (-75, 150),
         "alphaL center":      (57, 47),
-        "saddle (alpha-beta)": (-90, 0),
+        "saddle (alpha->beta)": (-90, 0),
         "steric clash":       (0, 0),
     }
 

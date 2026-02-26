@@ -146,7 +146,7 @@ def search_rcsb_designed(max_results=200):
         )
         with urllib.request.urlopen(req, timeout=30) as resp:
             data = json.loads(resp.read().decode('utf-8'))
-            pdb_ids = [r['identifier'] for r in data.get('result_set', [])]
+            pdb_ids = [r['identifier'].upper() for r in data.get('result_set', [])]
             print(f"  RCSB search returned {len(pdb_ids)} results")
             return pdb_ids
     except Exception as e:
@@ -157,7 +157,7 @@ def search_rcsb_designed(max_results=200):
 
 def download_cif(pdb_id, output_dir):
     """Download a CIF file from RCSB."""
-    outpath = os.path.join(output_dir, f"{pdb_id.lower()}.cif")
+    outpath = os.path.join(output_dir, f"{pdb_id.upper()}.cif")
     if os.path.exists(outpath):
         return outpath
 
@@ -221,11 +221,11 @@ def extract_angles_pdb(filepath, bfactor_min=0.0):
                                residues[i]['C'], residues[i+1]['N'])
         phi_d, psi_d = math.degrees(phi), math.degrees(psi)
         if -160 < phi_d < 0 and -120 < psi_d < 30:
-            ss = 'a'
+            ss = 'alpha'
         elif -170 < phi_d < -70 and (psi_d > 90 or psi_d < -120):
-            ss = 'b'
+            ss = 'beta'
         else:
-            ss = 'o'
+            ss = 'other'
         phi_psi.append((phi, psi))
         ss_seq.append(ss)
     return phi_psi, ss_seq
@@ -235,8 +235,8 @@ def classify_fold(ss_seq, alpha_thresh=0.15, beta_thresh=0.15):
     n = len(ss_seq)
     if n == 0:
         return 'other'
-    na = ss_seq.count('a') / n
-    nb = ss_seq.count('b') / n
+    na = ss_seq.count('alpha') / n
+    nb = ss_seq.count('beta') / n
     has_alpha = na >= alpha_thresh
     has_beta = nb >= beta_thresh
     if has_alpha and not has_beta:
@@ -246,8 +246,8 @@ def classify_fold(ss_seq, alpha_thresh=0.15, beta_thresh=0.15):
     elif has_alpha and has_beta:
         transitions = sum(1 for i in range(len(ss_seq)-1)
                          if ss_seq[i] != ss_seq[i+1]
-                         and ss_seq[i] in ('a','b')
-                         and ss_seq[i+1] in ('a','b'))
+                         and ss_seq[i] in ('alpha','beta')
+                         and ss_seq[i+1] in ('alpha','beta'))
         n_ab = na * n + nb * n
         trans_rate = transitions / max(n_ab, 1)
         return 'alpha/beta' if trans_rate > 0.05 else 'alpha+beta'

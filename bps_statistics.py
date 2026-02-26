@@ -507,7 +507,7 @@ def run_plddt_matching(conn, out, reference_org="ecoli", n_boot=1000):
 
         total_matched = target_per_bin.sum()
         if total_matched < 50:
-            out.append(f"  {org:<18} {len(bps):>8} {'< 50':>10} {bps_raw:>9.4f} {'—':>12} {'—':>8}")
+            out.append(f"  {org:<18} {len(bps):>8} {'< 50':>10} {bps_raw:>9.3f} {'—':>12} {'—':>8}")
             continue
 
         # Bootstrap matched means
@@ -525,8 +525,8 @@ def run_plddt_matching(conn, out, reference_org="ecoli", n_boot=1000):
         if boot_means:
             matched_mean = np.mean(boot_means)
             delta = matched_mean - bps_raw
-            out.append(f"  {org:<18} {len(bps):>8} {total_matched:>10} {bps_raw:>9.4f} "
-                       f"{matched_mean:>12.4f} {delta:>+8.4f}")
+            out.append(f"  {org:<18} {len(bps):>8} {total_matched:>10} {bps_raw:>9.3f} "
+                       f"{matched_mean:>12.3f} {delta:>+8.3f}")
 
     out.append("")
 
@@ -571,9 +571,9 @@ def run_pathogen_comparison(conn, out, plddt_threshold=0):
                     free_org_means.append(np.mean(vals))
 
     if path_bps and free_bps:
-        out.append(f"\n  Pathogen:     {np.mean(path_bps):.4f} +/- {np.std(path_bps):.4f} "
+        out.append(f"\n  Pathogen:     {np.mean(path_bps):.3f} +/- {np.std(path_bps):.3f} "
                    f"(N={len(path_bps):,})")
-        out.append(f"  Free-living:  {np.mean(free_bps):.4f} +/- {np.std(free_bps):.4f} "
+        out.append(f"  Free-living:  {np.mean(free_bps):.3f} +/- {np.std(free_bps):.3f} "
                    f"(N={len(free_bps):,})")
 
         if len(path_org_means) >= 2 and len(free_org_means) >= 2:

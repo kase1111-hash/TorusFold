@@ -343,7 +343,7 @@ def write_protein_table(results, out):
         helix = f"{r['pct_helix']:.0f}%" if r.get('pct_helix') is not None else "—"
         sheet = f"{r['pct_sheet']:.0f}%" if r.get('pct_sheet') is not None else "—"
         out.append(f"  {r['pdb_id']:>4} {r['name']:<18} {r['L']:>4} {r['ln_kf']:>7.2f} "
-                   f"{r['co_exp']:>7.3f} {co_c:>7} {r['bps_norm']:>8.4f} "
+                   f"{r['co_exp']:>7.3f} {co_c:>7} {r['bps_norm']:>8.3f} "
                    f"{plddt:>6} {helix:>5} {sheet:>5}")
 
     out.append("")

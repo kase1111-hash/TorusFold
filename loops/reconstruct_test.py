@@ -377,7 +377,7 @@ def _write_report(results: List[Dict], output_path: str) -> None:
         "## Method",
         "",
         "1. Extract experimental (phi, psi, omega) from crystal structure",
-        "2. Identify loop regions (alpha<->beta transitions)",
+        "2. Identify loop regions (alpha->beta / beta->alpha transitions)",
         "3. Replace SS element angles with basin centers",
         "4. Replace loop angles with nearest canonical family centroid",
         "5. Reconstruct backbone via forward kinematics",

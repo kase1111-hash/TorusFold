@@ -294,7 +294,7 @@ def check_actual_structure():
         m1 = np.cross(n1, b2 / max(np.linalg.norm(b2), 1e-10))
         x = np.dot(n1, n2)
         y = np.dot(m1, n2)
-        return math.degrees(math.atan2(y, x))
+        return math.atan2(y, x)
 
     residues = sorted(atoms.keys())
     phi_psi = []
@@ -318,9 +318,10 @@ def check_actual_structure():
         if phi is None or psi is None:
             n_coil += 1
             continue
-        if -160 < phi < 0 and -120 < psi < 30:
+        phi_d, psi_d = math.degrees(phi), math.degrees(psi)
+        if -160 < phi_d < 0 and -120 < psi_d < 30:
             n_helix += 1
-        elif -170 < phi < -70 and (psi > 90 or psi < -120):
+        elif -170 < phi_d < -70 and (psi_d > 90 or psi_d < -120):
             n_sheet += 1
         else:
             n_coil += 1

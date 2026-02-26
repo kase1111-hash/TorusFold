@@ -158,11 +158,11 @@ def extract_angles(filepath, plddt_min=70.0):
             continue
         phi_d, psi_d = math.degrees(phi), math.degrees(psi)
         if -160 < phi_d < 0 and -120 < psi_d < 30:
-            ss = 'a'
+            ss = 'alpha'
         elif -170 < phi_d < -70 and (psi_d > 90 or psi_d < -120):
-            ss = 'b'
+            ss = 'beta'
         else:
-            ss = 'o'
+            ss = 'other'
         phi_psi.append((phi, psi))
         ss_seq.append(ss)
     return phi_psi, ss_seq
@@ -173,8 +173,8 @@ def classify_fold(ss_seq, alpha_thresh=0.15, beta_thresh=0.15):
     n = len(ss_seq)
     if n == 0:
         return 'other'
-    na = ss_seq.count('a') / n
-    nb = ss_seq.count('b') / n
+    na = ss_seq.count('alpha') / n
+    nb = ss_seq.count('beta') / n
     has_alpha = na >= alpha_thresh
     has_beta = nb >= beta_thresh
     if has_alpha and not has_beta:
@@ -184,8 +184,8 @@ def classify_fold(ss_seq, alpha_thresh=0.15, beta_thresh=0.15):
     elif has_alpha and has_beta:
         transitions = sum(1 for i in range(len(ss_seq)-1)
                          if ss_seq[i] != ss_seq[i+1]
-                         and ss_seq[i] in ('a', 'b')
-                         and ss_seq[i+1] in ('a', 'b'))
+                         and ss_seq[i] in ('alpha', 'beta')
+                         and ss_seq[i+1] in ('alpha', 'beta'))
         n_ab = na * n + nb * n
         trans_rate = transitions / max(n_ab, 1)
         if trans_rate > 0.05:
@@ -409,9 +409,9 @@ def generate_fig1(data_dir, W_grid, grid_size, sample_proteins, fig_dir):
 
     # Filter to alpha-basin residues only
     alpha_phi_real = [all_phi_real[i] for i in range(len(all_ss_real))
-                      if all_ss_real[i] == 'a']
+                      if all_ss_real[i] == 'alpha']
     alpha_psi_real = [all_psi_real[i] for i in range(len(all_ss_real))
-                      if all_ss_real[i] == 'a']
+                      if all_ss_real[i] == 'alpha']
 
     # For segment null, use same count
     n_alpha = len(alpha_phi_real)

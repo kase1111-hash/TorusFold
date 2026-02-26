@@ -130,7 +130,7 @@ def extract_loops(
         s1_start, s1_end, basin1 = ss_elements[k]
         s2_start, s2_end, basin2 = ss_elements[k + 1]
 
-        # Only alpha<->beta transitions
+        # Only alpha->beta / beta->alpha transitions
         if basin1 == basin2:
             continue
 

@@ -135,7 +135,7 @@ CURATED_CHAINS = [
     ("1PIN", "A", "Pin1 WW domain", "all-beta"),
     ("2AIT", "A", "Alpha-amylase inhibitor (tendamistat)", "all-beta"),
     ("1K40", "A", "GB1 protein", "all-beta"),
-    ("2ACE", "A", "Acetylcholinesterase", "alpha-beta"),
+    ("2ACE", "A", "Acetylcholinesterase", "alpha/beta"),
     ("1VCC", "A", "Vaccinia topoisomerase N-term", "alpha+beta"),
     ("1OPD", "A", "HPr phosphocarrier", "alpha+beta"),
     ("1I8A", "A", "Carbohydrate-binding module CBM9", "all-beta"),
@@ -146,45 +146,45 @@ CURATED_CHAINS = [
     ("1BPI", "A", "BPTI trypsin inhibitor", "small"),
 
     # Alpha/beta (TIM barrels, Rossmann folds, etc.)
-    ("1UBQ", "A", "Ubiquitin", "alpha-beta"),
+    ("1UBQ", "A", "Ubiquitin", "alpha/beta"),
     ("2LZM", "A", "T4 lysozyme", "alpha+beta"),
-    ("1HHP", "A", "HIV-1 protease", "alpha-beta"),
+    ("1HHP", "A", "HIV-1 protease", "alpha/beta"),
     ("2CI2", "I", "Chymotrypsin inhibitor 2", "alpha+beta"),
-    ("3ENL", "A", "Enolase", "alpha-beta"),
-    ("1CDK", "E", "cAMP-dep protein kinase", "alpha-beta"),
-    ("5P21", "A", "p21 H-Ras", "alpha-beta"),
-    ("1TIM", "A", "Triosephosphate isomerase", "alpha-beta"),
-    ("8RUB", "A", "RuBisCO", "alpha-beta"),
-    ("1PFK", "A", "Phosphofructokinase", "alpha-beta"),
-    ("4ENL", "A", "Enolase (yeast)", "alpha-beta"),
-    ("1GKY", "A", "Guanylate kinase", "alpha-beta"),
-    ("1PHT", "A", "Phosphotriesterase", "alpha-beta"),
-    ("1BTL", "A", "Beta-lactamase TEM-1", "alpha-beta"),
-    ("1AK0", "A", "Alcohol dehydrogenase", "alpha-beta"),
-    ("2TRX", "A", "Thioredoxin", "alpha-beta"),
+    ("3ENL", "A", "Enolase", "alpha/beta"),
+    ("1CDK", "E", "cAMP-dep protein kinase", "alpha/beta"),
+    ("5P21", "A", "p21 H-Ras", "alpha/beta"),
+    ("1TIM", "A", "Triosephosphate isomerase", "alpha/beta"),
+    ("8RUB", "A", "RuBisCO", "alpha/beta"),
+    ("1PFK", "A", "Phosphofructokinase", "alpha/beta"),
+    ("4ENL", "A", "Enolase (yeast)", "alpha/beta"),
+    ("1GKY", "A", "Guanylate kinase", "alpha/beta"),
+    ("1PHT", "A", "Phosphotriesterase", "alpha/beta"),
+    ("1BTL", "A", "Beta-lactamase TEM-1", "alpha/beta"),
+    ("1AK0", "A", "Alcohol dehydrogenase", "alpha/beta"),
+    ("2TRX", "A", "Thioredoxin", "alpha/beta"),
     ("1CRN", "A", "Crambin", "small"),
     ("1L2Y", "A", "Trp-cage miniprotein", "small"),
-    ("1UXD", "A", "UDP-glucuronate decarbox.", "alpha-beta"),
-    ("1ADS", "A", "Aldose reductase", "alpha-beta"),
-    ("1XNB", "A", "Xylanase", "alpha-beta"),
+    ("1UXD", "A", "UDP-glucuronate decarbox.", "alpha/beta"),
+    ("1ADS", "A", "Aldose reductase", "alpha/beta"),
+    ("1XNB", "A", "Xylanase", "alpha/beta"),
     ("3RN3", "A", "Ribonuclease S", "alpha+beta"),
-    ("1CSE", "E", "Subtilisin", "alpha-beta"),
-    ("2SNS", "A", "Staphylococcal nuclease", "alpha-beta"),
-    ("1PPL", "E", "Penicillopepsin", "alpha-beta"),
-    ("1AKE", "A", "Adenylate kinase", "alpha-beta"),
-    ("1PHP", "A", "Phosphorylase B", "alpha-beta"),
-    ("3PGK", "A", "Phosphoglycerate kinase", "alpha-beta"),
-    ("1EFN", "A", "Elongation factor (N-term)", "alpha-beta"),
-    ("1CSK", "A", "CheA sensor kinase", "alpha-beta"),
+    ("1CSE", "E", "Subtilisin", "alpha/beta"),
+    ("2SNS", "A", "Staphylococcal nuclease", "alpha/beta"),
+    ("1PPL", "E", "Penicillopepsin", "alpha/beta"),
+    ("1AKE", "A", "Adenylate kinase", "alpha/beta"),
+    ("1PHP", "A", "Phosphorylase B", "alpha/beta"),
+    ("3PGK", "A", "Phosphoglycerate kinase", "alpha/beta"),
+    ("1EFN", "A", "Elongation factor (N-term)", "alpha/beta"),
+    ("1CSK", "A", "CheA sensor kinase", "alpha/beta"),
     ("1STP", "A", "Streptavidin", "all-beta"),
     ("1LYZ", "A", "Hen lysozyme", "alpha+beta"),
     ("1HEL", "A", "Hen egg-white lysozyme", "alpha+beta"),
-    ("1GCA", "A", "Glucoamylase", "alpha-beta"),
-    ("1CHD", "A", "Cholesterol oxidase", "alpha-beta"),
-    ("1OVA", "A", "Ovalbumin", "alpha-beta"),
-    ("1PII", "A", "Trypsin (porcine)", "alpha-beta"),
-    ("2CPP", "A", "Cytochrome P450cam", "alpha-beta"),
-    ("1EST", "A", "Elastase", "alpha-beta"),
+    ("1GCA", "A", "Glucoamylase", "alpha/beta"),
+    ("1CHD", "A", "Cholesterol oxidase", "alpha/beta"),
+    ("1OVA", "A", "Ovalbumin", "alpha/beta"),
+    ("1PII", "A", "Trypsin (porcine)", "alpha/beta"),
+    ("2CPP", "A", "Cytochrome P450cam", "alpha/beta"),
+    ("1EST", "A", "Elastase", "alpha/beta"),
     ("4GCR", "A", "Gamma-B crystallin", "all-beta"),
     ("1HOE", "A", "Alpha-amylase inhibitor", "all-beta"),
 
@@ -231,62 +231,62 @@ CURATED_CHAINS = [
     # Additional well-characterized structures
     ("1WQ1", "A", "WW domain FBP28", "all-beta"),
     ("2ABD", "A", "Acyl-CoA binding domain", "all-alpha"),
-    ("1A2P", "B", "Penicillin acylase beta", "alpha-beta"),
+    ("1A2P", "B", "Penicillin acylase beta", "alpha/beta"),
     ("2LIS", "A", "Lysozyme (human)", "alpha+beta"),
-    ("1GXU", "A", "G-protein alpha", "alpha-beta"),
-    ("1AJJ", "A", "Acetohydroxy acid isomeroreductase", "alpha-beta"),
-    ("1C9O", "A", "Methionine aminopeptidase", "alpha-beta"),
-    ("1B0N", "A", "Pyruvate kinase", "alpha-beta"),
+    ("1GXU", "A", "G-protein alpha", "alpha/beta"),
+    ("1AJJ", "A", "Acetohydroxy acid isomeroreductase", "alpha/beta"),
+    ("1C9O", "A", "Methionine aminopeptidase", "alpha/beta"),
+    ("1B0N", "A", "Pyruvate kinase", "alpha/beta"),
     ("2IFO", "A", "Interferon omega", "all-alpha"),
-    ("1MLA", "A", "Malate dehydrogenase", "alpha-beta"),
+    ("1MLA", "A", "Malate dehydrogenase", "alpha/beta"),
     ("1GOF", "A", "GAL4 DNA-binding domain", "other"),
     ("1LZ1", "A", "Lysozyme variant", "alpha+beta"),
     ("1I6P", "A", "Type III antifreeze", "all-beta"),
-    ("1FLV", "A", "Flavodoxin", "alpha-beta"),
-    ("1CX1", "A", "Calcineurin-like", "alpha-beta"),
+    ("1FLV", "A", "Flavodoxin", "alpha/beta"),
+    ("1CX1", "A", "Calcineurin-like", "alpha/beta"),
     ("1B6B", "A", "Carboxypeptidase inhibitor", "small"),
-    ("2FDN", "A", "Ferredoxin", "alpha-beta"),
+    ("2FDN", "A", "Ferredoxin", "alpha/beta"),
     ("1PSR", "A", "Phosphoserine residue", "all-beta"),
-    ("1AYI", "A", "Adenylyl cyclase", "alpha-beta"),
+    ("1AYI", "A", "Adenylyl cyclase", "alpha/beta"),
     ("1A4I", "A", "Interleukin-1 beta", "all-beta"),
     ("1CEM", "A", "Cellobiohydrolase", "all-beta"),
     ("1AHO", "A", "Charybdotoxin analog", "small"),
     ("1AG2", "A", "Antigen peptide", "other"),
     ("1BFG", "A", "Basic fibroblast growth factor", "all-beta"),
-    ("1BGE", "A", "Barley grain endoprotease", "alpha-beta"),
-    ("1C44", "A", "Hevamine", "alpha-beta"),
-    ("3MBP", "A", "Maltose-binding protein", "alpha-beta"),
+    ("1BGE", "A", "Barley grain endoprotease", "alpha/beta"),
+    ("1C44", "A", "Hevamine", "alpha/beta"),
+    ("3MBP", "A", "Maltose-binding protein", "alpha/beta"),
     ("1CC8", "A", "Cytochrome c553", "all-alpha"),
-    ("1CKA", "A", "Casein kinase alpha", "alpha-beta"),
-    ("1EZM", "A", "Elastase (neutrophil)", "alpha-beta"),
+    ("1CKA", "A", "Casein kinase alpha", "alpha/beta"),
+    ("1EZM", "A", "Elastase (neutrophil)", "alpha/beta"),
     ("1FAS", "A", "Fasciculin 2", "small"),
-    ("1GAL", "A", "Beta-galactosidase", "alpha-beta"),
-    ("1HFE", "A", "Lactoferrin (N-lobe)", "alpha-beta"),
+    ("1GAL", "A", "Beta-galactosidase", "alpha/beta"),
+    ("1HFE", "A", "Lactoferrin (N-lobe)", "alpha/beta"),
     ("1MOL", "A", "Monellin", "alpha+beta"),
-    ("1NAR", "A", "Nitrite reductase", "alpha-beta"),
-    ("1POC", "A", "Phospholipase C", "alpha-beta"),
+    ("1NAR", "A", "Nitrite reductase", "alpha/beta"),
+    ("1POC", "A", "Phospholipase C", "alpha/beta"),
     ("1RCF", "A", "Ferricytochrome", "all-alpha"),
-    ("1SAK", "A", "Streptokinase alpha", "alpha-beta"),
+    ("1SAK", "A", "Streptokinase alpha", "alpha/beta"),
     ("1THW", "A", "Thaumatin", "all-beta"),
-    ("1TPH", "A", "Triosephosphate isomerase", "alpha-beta"),
-    ("2PTC", "E", "Trypsin", "alpha-beta"),
+    ("1TPH", "A", "Triosephosphate isomerase", "alpha/beta"),
+    ("2PTC", "E", "Trypsin", "alpha/beta"),
     ("2SOD", "A", "Cu/Zn superoxide dismutase", "all-beta"),
     ("3SSI", "A", "Streptomyces subtilisin inh.", "alpha+beta"),
-    ("1BM8", "A", "Carbonic anhydrase II", "alpha-beta"),
+    ("1BM8", "A", "Carbonic anhydrase II", "alpha/beta"),
     ("1CNV", "A", "Concanavalin A (deglycosylated)", "all-beta"),
     ("1ECD", "A", "Erythropoietin-like", "all-alpha"),
-    ("1HLE", "A", "Human leukocyte elastase", "alpha-beta"),
+    ("1HLE", "A", "Human leukocyte elastase", "alpha/beta"),
     ("1MAZ", "A", "Canavalin", "all-beta"),
     ("1OMP", "A", "OmpF porin", "all-beta"),
-    ("1PHN", "A", "Pyridine nucleotide-disulphide", "alpha-beta"),
+    ("1PHN", "A", "Pyridine nucleotide-disulphide", "alpha/beta"),
     ("1PLC", "A", "Plastocyanin (poplar)", "all-beta"),
     ("1PPT", "A", "Avian pancreatic polypeptide", "small"),
-    ("1RVE", "A", "HIV-1 reverse transcriptase", "alpha-beta"),
-    ("1SGT", "A", "Trypsin (Streptomyces)", "alpha-beta"),
-    ("2PRK", "A", "Proteinase K", "alpha-beta"),
-    ("3APP", "A", "Penicillopepsin (acid)", "alpha-beta"),
-    ("4CMS", "A", "Chymosin", "alpha-beta"),
-    ("9PAP", "A", "Papain", "alpha-beta"),
+    ("1RVE", "A", "HIV-1 reverse transcriptase", "alpha/beta"),
+    ("1SGT", "A", "Trypsin (Streptomyces)", "alpha/beta"),
+    ("2PRK", "A", "Proteinase K", "alpha/beta"),
+    ("3APP", "A", "Penicillopepsin (acid)", "alpha/beta"),
+    ("4CMS", "A", "Chymosin", "alpha/beta"),
+    ("9PAP", "A", "Papain", "alpha/beta"),
 ]
 
 
@@ -357,14 +357,14 @@ def download_pdb_cif(pdb_id, cache_dir):
 
     Returns path to the downloaded file, or None on failure.
     """
-    pdb_id_lower = pdb_id.lower()
-    filename = f"{pdb_id_lower}.cif"
+    pdb_id_upper = pdb_id.upper()
+    filename = f"{pdb_id_upper}.cif"
     filepath = cache_dir / filename
 
     if filepath.exists() and filepath.stat().st_size > 100:
         return filepath
 
-    url = f"https://files.rcsb.org/download/{pdb_id_lower}.cif"
+    url = f"https://files.rcsb.org/download/{pdb_id_upper}.cif"
     for attempt in range(4):
         try:
             req = urllib.request.Request(url, headers={'User-Agent': 'BPS-Validate/1.0'})
@@ -709,7 +709,7 @@ def process_chains(chain_list, W_interp, phi_sign, max_chains=None, skip_downloa
         description = chain_info[2] if len(chain_info) > 2 else ""
         scop_class = chain_info[3] if len(chain_info) > 3 else "unknown"
 
-        filepath = PDB_CACHE_DIR / f"{pdb_id.lower()}.cif"
+        filepath = PDB_CACHE_DIR / f"{pdb_id.upper()}.cif"
         if not filepath.exists():
             n_skipped_download += 1
             continue
@@ -974,11 +974,11 @@ def write_report(results, analysis, outpath=REPORT_PATH):
     add("| Source | N proteins | Mean BPS/L | Std | CV (%) |")
     add("|--------|-----------|-----------|-----|--------|")
     add(f"| AlphaFold (HQ, pLDDT≥85) | {AF_REFERENCE['n_proteins']} | "
-        f"{AF_REFERENCE['mean_bps']:.4f} | {AF_REFERENCE['std_bps']:.4f} | "
+        f"{AF_REFERENCE['mean_bps']:.3f} | {AF_REFERENCE['std_bps']:.3f} | "
         f"{AF_REFERENCE['cv_pct']:.1f} |")
     if analysis.get('n_chains'):
         add(f"| PDB experimental | {analysis['n_chains']} | "
-            f"{analysis['mean_bps']:.4f} | {analysis['std_bps']:.4f} | "
+            f"{analysis['mean_bps']:.3f} | {analysis['std_bps']:.3f} | "
             f"{analysis['cv_pct']:.1f} |")
     add()
 
@@ -1088,7 +1088,7 @@ def write_report(results, analysis, outpath=REPORT_PATH):
     for r in results[:30]:
         res_str = f"{r['resolution']:.2f}" if r['resolution'] is not None else "—"
         add(f"| {r['pdb_id']} | {r['chain_id']} | {r['L']} | {res_str} | "
-            f"{r['bps_norm']:.4f} | {r.get('pct_helix', 0):.0f} | "
+            f"{r['bps_norm']:.3f} | {r.get('pct_helix', 0):.0f} | "
             f"{r.get('pct_sheet', 0):.0f} | {r['scop_class']} |")
     add()
 
@@ -1101,8 +1101,8 @@ def write_report(results, analysis, outpath=REPORT_PATH):
         if delta_pct < 5 and analysis['cv_pct'] <= 5:
             add("**RESULT: BPS/L universality is CONFIRMED in experimental structures.**")
             add()
-            add(f"PDB mean BPS/L = {analysis['mean_bps']:.4f} vs AlphaFold = "
-                f"{AF_REFERENCE['mean_bps']:.4f} (Δ = {delta_pct:.1f}%).")
+            add(f"PDB mean BPS/L = {analysis['mean_bps']:.3f} vs AlphaFold = "
+                f"{AF_REFERENCE['mean_bps']:.3f} (Δ = {delta_pct:.1f}%).")
             add(f"PDB CV = {analysis['cv_pct']:.1f}%.")
             add()
             add("This eliminates the reviewer concern that BPS/L ≈ 0.20 is an artifact "
@@ -1111,7 +1111,7 @@ def write_report(results, analysis, outpath=REPORT_PATH):
         elif delta_pct < 10:
             add("**RESULT: BPS/L shows approximate agreement between PDB and AlphaFold.**")
             add()
-            add(f"PDB mean = {analysis['mean_bps']:.4f}, AF mean = {AF_REFERENCE['mean_bps']:.4f} "
+            add(f"PDB mean = {analysis['mean_bps']:.3f}, AF mean = {AF_REFERENCE['mean_bps']:.3f} "
                 f"(Δ = {delta_pct:.1f}%). The values are close but not identical. "
                 "Minor differences may arise from the non-redundant chain selection, "
                 "crystal packing effects, or residual differences between predicted "
@@ -1119,7 +1119,7 @@ def write_report(results, analysis, outpath=REPORT_PATH):
         else:
             add("**RESULT: PDB and AlphaFold BPS/L differ substantially.**")
             add()
-            add(f"PDB mean = {analysis['mean_bps']:.4f}, AF mean = {AF_REFERENCE['mean_bps']:.4f} "
+            add(f"PDB mean = {analysis['mean_bps']:.3f}, AF mean = {AF_REFERENCE['mean_bps']:.3f} "
                 f"(Δ = {delta_pct:.1f}%). This suggests AlphaFold's structural priors "
                 "may influence the BPS/L value. Further investigation is needed.")
     else:
@@ -1192,11 +1192,11 @@ def main():
     # ---- Analyze ----
     logging.info("Running analysis...")
     analysis = analyze_results(results)
-    logging.info(f"  PDB mean BPS/L = {analysis.get('mean_bps', 0):.4f} "
-                 f"± {analysis.get('std_bps', 0):.4f}")
+    logging.info(f"  PDB mean BPS/L = {analysis.get('mean_bps', 0):.3f} "
+                 f"± {analysis.get('std_bps', 0):.3f}")
     logging.info(f"  PDB CV = {analysis.get('cv_pct', 0):.1f}%")
-    logging.info(f"  AF  mean BPS/L = {AF_REFERENCE['mean_bps']:.4f} "
-                 f"± {AF_REFERENCE['std_bps']:.4f}")
+    logging.info(f"  AF  mean BPS/L = {AF_REFERENCE['mean_bps']:.3f} "
+                 f"± {AF_REFERENCE['std_bps']:.3f}")
     logging.info("")
 
     # ---- Report ----

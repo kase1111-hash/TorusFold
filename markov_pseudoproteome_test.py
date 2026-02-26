@@ -254,15 +254,15 @@ def run_sanity_check(W_interp, cdf, n_grid, rng):
         logging.info(f"    [{i:2d}] |dW|={dW[i]:.6f}")
 
     bps_l = float(np.sum(dW)) / 200
-    logging.info(f"  BPS/L = {bps_l:.4f}")
+    logging.info(f"  BPS/L = {bps_l:.3f}")
     logging.info(f"  (Expected ~0.35-0.45 for IID; real proteins ~0.17-0.21)")
 
     # Validate
     errors = []
     if bps_l < 0.05:
-        errors.append(f"BPS/L={bps_l:.4f} near zero — sampling or lookup broken")
+        errors.append(f"BPS/L={bps_l:.3f} near zero — sampling or lookup broken")
     if bps_l > 2.0:
-        errors.append(f"BPS/L={bps_l:.4f} implausibly high")
+        errors.append(f"BPS/L={bps_l:.3f} implausibly high")
     if phi_deg.std() < 5:
         errors.append(f"phi std={phi_deg.std():.1f} — too clustered")
     if psi_deg.std() < 5:
@@ -275,7 +275,7 @@ def run_sanity_check(W_interp, cdf, n_grid, rng):
     # Short chain test
     phi_s, psi_s = sample_iid_chain(10, cdf, n_grid, rng)
     bps_s = compute_bps_l(phi_s, psi_s, W_interp)
-    logging.info(f"  Short chain (L=10) BPS/L = {bps_s:.4f}")
+    logging.info(f"  Short chain (L=10) BPS/L = {bps_s:.3f}")
 
     if errors:
         for e in errors:
