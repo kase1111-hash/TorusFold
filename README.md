@@ -1,157 +1,152 @@
-# TorusFold
+# TorusFold: Three Layers of Sequential Organization in Protein Backbones
 
-**Protein backbone structure from one-dimensional paths on the Ramachandran torus.**
+A proteome-scale analysis of backbone torsion-angle organization on the Ramachandran torus, decomposed into three multiplicatively independent layers.
 
-TorusFold treats protein backbones as discrete paths on the flat torus T² = S¹ × S¹ (the Ramachandran configuration space), evaluates them against a fixed scalar superpotential W(φ,ψ) derived from empirical backbone statistics, and extracts structural invariants, loop path families, and prediction constraints.
+## What This Is
 
----
+Protein backbones trace paths through (φ, ψ) torsion space — the Ramachandran torus T². We define a family of superpotentials W(φ, ψ) = f(P(φ, ψ)) on this torus and measure how smoothly real proteins traverse it compared to null models. This reveals three separable layers of sequential organization:
+
+**Layer 1 — Geometric structural coherence (~11%).** Real proteins are smoother on T² than expected from within-basin randomization. This decomposes into inter-element structural fingerprinting (~6%, each helix/strand has its own torsion centroid) and within-element sequential ordering (~4%, consecutive-pair smoothness within elements). Both are absent in random-coil polymers and present in experimental PDB structures.
+
+**Layer 2 — Density-peak alignment (~17%).** The superpotential amplifies the geometric signal because real proteins concentrate near Ramachandran density peaks. Transform-invariant across seven functional forms.
+
+**Layer 3 — Transition architecture (~14%).** Basin-to-basin transitions follow non-random patterns beyond first-order Markov statistics. Metric-independent.
+
+These layers are multiplicatively independent (interaction term I = 1.004) and together produce ~1.6× roughness suppression relative to random sequences. The per-residue BPS/L constant of ~0.200 is conserved across 29 organisms spanning ~4 billion years of divergence (CV = 1.8%).
 
 ## Key Results
 
-### A Universal Backbone Invariant
-
-The total variation of W along the sequential backbone path, normalized by chain length (BPS/L), converges to a universal constant:
-
-**BPS/L = 0.202 ± 0.004** (CV = 2.1%)
-
-across 22 organisms spanning all kingdoms of life (66,549 AlphaFold structures), confirmed on 162 experimental PDB crystal structures (BPS/L = 0.207, Δ = 2.4%).
-
-BPS/L is independent of contact order (r = −0.05), helix content (r = 0.03), and sheet content (r = −0.11), establishing it as a novel structural descriptor orthogonal to all previously reported backbone metrics.
-
-### Canonical Loop Path Families
-
-Loop transitions between α-helix and β-sheet basins cluster into discrete families on T²:
-
-| Loop length | Families | Coverage | |ΔW| CV |
-|-------------|----------|----------|---------|
-| Short (≤7 residues) | 30 | 100% | 6.6–9.3% |
-| Medium (8–10) | 1–3 | 52–100% | ~24% |
-| Long (11+) | 0 tight | — | >37% |
-
-Short loops are geometrically constrained by saddle-point topology. The loop prediction problem for this class is classification, not generation.
-
-### Three-Level Backbone Decomposition
-
-| Model | BPS/L | What's preserved |
-|-------|-------|------------------|
-| Shuffled | 0.55 | Basin occupancy only |
-| Markov | 0.30 | Transition frequencies |
-| Real | 0.20 | Full conformational coherence |
-
-Real proteins suppress intra-basin roughness by 97% compared to random within-basin sampling. This suppression is the quantitative signature of secondary structure.
-
----
+| Finding | Value |
+|---|---|
+| Cross-organism BPS/L conservation | CV = 1.8% across 29 organisms |
+| Torus Seg/Real (AlphaFold) | 1.106× [1.059, 1.159] |
+| Torus Seg/Real (PDB experimental) | 1.069× [1.047, 1.092] |
+| Steric-coupled polymer null | 0.997× (no smoothing) |
+| Neighbor-conditional model | 1.087× (84% of effect) |
+| Transform invariance (7 forms) | r > 0.96, ratios within 5% |
+| W independence (9 constructions) | CV = 3% |
+| Natural vs designed proteins | Δ = 0.01 |
+| Layer independence | I = 1.004 across 5 length bins |
+| Markov model prediction | 0.200 predicted vs 0.200 ± 0.005 observed |
 
 ## Installation
 
 ```bash
-git clone https://github.com/yourusername/TorusFold.git
-cd TorusFold
-pip install numpy scipy biopython matplotlib scikit-learn
+pip install gemmi numpy --break-system-packages
 ```
 
-Python 3.10+ required. No GPU needed for analysis pipelines.
+Optional (for figures): `pip install matplotlib scipy hdbscan`
 
-## Quick Start
+## Data Setup
 
-### Compute BPS/L for PDB structures
+Download AlphaFold proteome predictions and organize as:
+
+```
+alphafold_cache/
+  human/
+    AF-A0A0A0MRZ7-F1-model_v4.cif
+    ...
+  ecoli/
+    ...
+```
+
+PDB structures for validation go in `pdb_cache/`.
+
+## Pipeline
+
+Run in order (step 1 must be first, steps 2–10 can run in any order after):
 
 ```bash
-# Run PDB experimental validation (~200 structures)
-python bps/bps_pdb_validate.py
+# 1. Build superpotential (MUST BE FIRST, ~1-2 hours)
+python build_superpotential.py --data alphafold_cache --output results
 
-# Output: pdb_validation_report.md
+# 2. Torus distance control (~15-30 min)
+python torus_distance_control.py --data alphafold_cache --sample 200 --output results
+
+# 3. Length-binned analysis (~20-40 min)
+python length_binned_torus.py --data alphafold_cache --sample 500 --output results
+
+# 4. Polymer null experiment (~30 min)
+python polymer_null_experiment.py --data alphafold_cache --output results
+
+# 5. Per-segment permutation null (~10 min)
+python per_segment_null.py --data alphafold_cache --output results --sample 200
+
+# 6. Pre-submission hardening tests (~15 min)
+python hardening_tests.py --data alphafold_cache --pdb-dir pdb_cache --output results
+
+# 7. Within-fold-class CV (~2-4 hours, full dataset)
+python within_foldclass_cv.py --data alphafold_cache --sample 0 --output results
+
+# 8. W independence (~1-2 hours)
+python w_independence.py --data alphafold_cache --output results
+
+# 9. Cluster stability (~6-12 hours, run overnight)
+python subsample_cluster_stability.py --data alphafold_cache --sample 0 --output results
+
+# 10. Figures (after 2-9 complete)
+python generate_figures.py --data alphafold_cache --sample 200 --output results
 ```
 
-### Run loop path taxonomy
+Windows users: batch files (`run_*.bat`) are provided for each step.
 
-```bash
-# Full analysis (~500 structures, 15-45 min)
-python loops/loop_taxonomy_v2.py
+All scripts use deterministic random seeds for reproducibility.
 
-# Quick test (100 structures, ~5 min)
-python loops/loop_taxonomy_v2.py --max-structs 100
+## Script Descriptions
 
-# Output: loop_taxonomy_v2_output/loop_taxonomy_v2_report.md
-#         loop_taxonomy_v2_output/*.png (torus plots)
-```
+| Script | What it does |
+|---|---|
+| `build_superpotential.py` | Builds W(φ,ψ) from all structures. Outputs `superpotential_W.npz`. |
+| `torus_distance_control.py` | Tier 0 falsification: four distance metrics on identical null models. Separates geometric signal from W-curvature artifacts. |
+| `length_binned_torus.py` | Bins proteins by length (50–1090 residues), confirms effect is length-independent. |
+| `polymer_null_experiment.py` | **The key experiment.** Four polymer models (IID, steric-coupled, neighbor-conditional, real). Proves Layer 1 requires secondary structure. |
+| `per_segment_null.py` | Decomposes Layer 1 into within-element ordering vs inter-element heterogeneity. |
+| `hardening_tests.py` | Three pre-submission controls: local-window null, PDB torus Seg/Real, steric rejection diagnostics. |
+| `within_foldclass_cv.py` | Cross-organism and within-fold-class coefficient of variation. Full dataset analysis. |
+| `w_independence.py` | Nine independent W constructions (train/test splits, grid resolutions). |
+| `subsample_cluster_stability.py` | Loop taxonomy: HDBSCAN clustering with 5× subsample stability. |
+| `generate_figures.py` | Publication figures. |
 
-### Compute BPS/L for AlphaFold proteomes
+## Null Model Hierarchy
 
-```bash
-# Download and process a single organism
-python bps/bps_download.py --organism ecoli
-python bps/bps_process.py --organism ecoli
+From least to most constrained:
 
-# Generate cross-proteome report
-python bps/compile_results.py
-```
+1. **Shuffled** — random permutation of full (φ,ψ) sequence
+2. **First-order Markov (M1)** — preserves single-step basin transition probabilities
+3. **Second-order Markov (M2)** — preserves bigram transitions
+4. **Segment-preserving (full pool)** — preserves SS sequence, draws from protein's own basin pool
+5. **Per-segment permutation** — permutes within each contiguous SS segment only
+6. **Real backbone** — observed structure
 
----
+## Polymer Null Models
 
-## How It Works
+From no physics to full structure:
 
-### The Superpotential
+| Model | Physics | Seg/Real |
+|---|---|---|
+| IID Ramachandran | None | 0.998× |
+| Steric-coupled | Bond geometry + 2.0Å clash rejection | 0.997× |
+| Neighbor-conditional | Empirical P(φᵢ₊₁,ψᵢ₊₁ \| φᵢ,ψᵢ) | 1.087× |
+| Real proteins | Full folded structure | 1.104× |
 
-Every residue in a protein backbone has two dihedral angles (φ, ψ) that live on the flat torus T². We define a scalar field on this torus:
+The steric model builds 3D backbones atom-by-atom with realistic bond lengths, angles, and trans ω. Its Seg/Real of 0.997× proves that peptide bond stereochemistry alone produces zero sequential smoothing. The effect requires secondary structure.
 
-```
-W(φ, ψ) = −ln p(φ, ψ)
-```
+## Outputs
 
-where p is the empirical probability density of backbone dihedrals across all known structures. W is the potential of mean force — valleys are populated regions (α-helix, β-sheet), peaks are forbidden regions (steric clashes), saddle points are the passes between basins.
+All results go to `results/`. Key files:
 
-### The Observable
-
-A protein backbone traces a sequential path through this landscape. BPS/L measures the roughness of that path:
-
-```
-BPS/L = (1/L) Σ |W(φ_{i+1}, ψ_{i+1}) − W(φ_i, ψ_i)|
-```
-
-This is the total variation of W along the chain, normalized by length. It counts every transition through the landscape regardless of direction.
-
-### The Result
-
-BPS/L ≈ 0.20 is determined by:
-1. **Fixed landscape topology** — the energy gaps between Ramachandran basins are universal
-2. **Conserved transition frequencies** — secondary structure element lengths are conserved across all life
-3. **Intra-basin conformational coherence** — consecutive residues in a helix/sheet lock to a narrow attractor, not the full basin
-
----
-
-## Repository Structure
-
-```
-TorusFold/
-├── CLAUDE.md              # Development context for Claude Code
-├── bps/                   # BPS/L proteome atlas pipeline
-├── loops/                 # Loop path taxonomy and clustering
-├── torusfold/             # Structure prediction module (in development)
-├── docs/                  # Architecture specs and papers
-├── data/                  # Generated data (gitignored)
-└── tests/                 # Validation and regression tests
-```
-
-## Papers
-
-- **BPS Paper:** "Proteins as One-Dimensional Paths on the Ramachandran Torus: A Superpotential Framework for Backbone Structural Invariants" (Branham, 2026, in preparation)
-- **Loop Taxonomy:** "Discrete Loop Path Families on the Ramachandran Torus and Their Sequence Determinants" (planned)
-- **Architecture Spec:** TorusFold integration with structure prediction networks (see `docs/alphafold_integration.md`)
+- `superpotential_W.npz` — W grid, histogram, metadata
+- `polymer_null_report.md` — polymer null experiment results
+- `per_segment_null_report.md` — Layer 1 sub-decomposition
+- `hardening_tests_report.md` — PDB torus validation, rejection diagnostics
+- `*_report.md` — markdown reports from each analysis script
 
 ## Citation
 
-If you use TorusFold or the BPS/L framework in your work, please cite:
+Paper in preparation. If you use this code, please cite:
 
-```
-Branham, K. (2026). Proteins as One-Dimensional Paths on the Ramachandran Torus:
-A Superpotential Framework for Backbone Structural Invariants. In preparation.
-```
+> TorusFold: Three Layers of Sequential Organization in Protein Backbones. Kase Branham. 2026.
 
 ## License
 
 MIT
-
-## Author
-
-**Kase Branham** · Independent Research · Portland, Oregon
