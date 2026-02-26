@@ -107,8 +107,9 @@ def extract_angles(filepath, plddt_min=70.0):
     return phi_psi, ss_seq
 
 
-def build_W_from_angles(all_phi_psi, grid_size=360, smooth_sigma=0.0, epsilon=1e-7):
-    """Build W grid from list of (phi, psi) pairs in radians."""
+def build_W_from_angles(all_phi_psi, grid_size=360, smooth_sigma=1.5):
+    """Build W = -sqrt(P) grid from list of (phi, psi) pairs in radians."""
+    from scipy.ndimage import gaussian_filter
     grid = np.zeros((grid_size, grid_size), dtype=np.float64)
     scale = grid_size / 360.0
 
@@ -123,11 +124,12 @@ def build_W_from_angles(all_phi_psi, grid_size=360, smooth_sigma=0.0, epsilon=1e
     if total > 0:
         grid /= total
 
-    if smooth_sigma > 0:
-        from scipy.ndimage import gaussian_filter
-        grid = gaussian_filter(grid, sigma=smooth_sigma, mode='wrap')
+    grid = np.maximum(grid, np.max(grid) * 1e-6 if grid.max() > 0 else 1e-10)
+    W = -np.sqrt(grid)
 
-    W = -np.log(grid + epsilon)
+    if smooth_sigma > 0:
+        W = gaussian_filter(W, sigma=smooth_sigma, mode='wrap')
+
     return W, grid_size
 
 
@@ -142,11 +144,12 @@ def lookup_W(W_grid, grid_size, phi_rad, psi_rad):
 
 
 def compute_bps_l(phi_arr, psi_arr, W_grid, grid_size):
-    """BPS/L from arrays."""
+    """BPS/L from arrays. Normalizes by L."""
     if len(phi_arr) < 2:
         return 0.0
     w = lookup_W(W_grid, grid_size, phi_arr, psi_arr)
-    return float(np.mean(np.abs(np.diff(w))))
+    L = len(phi_arr)
+    return float(np.sum(np.abs(np.diff(w)))) / L
 
 
 def null_segment(phi_psi, ss_seq, rng):
@@ -416,49 +419,22 @@ def main():
     print("  TEST 0: Baseline (cached W from full dataset)")
     print("=" * 60)
 
-    w_cache = args.w_path or os.path.join(args.output, "superpotential_W.npz")
-    W_baseline = None
-    gs_baseline = 0
+    # Build baseline W from shared von Mises construction
+    from bps.superpotential import build_superpotential as _build_W
+    W_baseline, _, _ = _build_W(360)
+    gs_baseline = W_baseline.shape[0]
+    print(f"  Built baseline W: {gs_baseline}x{gs_baseline} (von Mises -sqrt(P))")
 
-    if os.path.exists(w_cache):
-        data = np.load(w_cache)
-        W_baseline = data['grid']
-        gs_baseline = W_baseline.shape[0]
-        print(f"  Loaded baseline W: {gs_baseline}x{gs_baseline} from {w_cache}")
-    else:
-        # Search common locations
-        search_paths = [
-            os.path.join(args.output, "superpotential_W.npz"),
-            os.path.join(args.data, '..', 'results', 'superpotential_W.npz'),
-            os.path.join(args.data, '..', 'superpotential_W.npz'),
-            'superpotential_W.npz',
-        ]
-        for sp in search_paths:
-            sp = os.path.normpath(sp)
-            if os.path.exists(sp):
-                print(f"  Found baseline W at {sp}")
-                data = np.load(sp)
-                W_baseline = data['grid']
-                gs_baseline = W_baseline.shape[0]
-                print(f"  Loaded: {gs_baseline}x{gs_baseline}")
-                break
-
-    if W_baseline is not None:
-        test_set = all_files_shuffled[:args.sample]
-        r = run_test("Baseline (full W)", W_baseline, gs_baseline,
-                     test_set, organisms, rng)
-        if r:
-            test_results.append(r)
-            print(f"  BPS/L = {r['global_mean']:.3f}, CV = {r['global_cv']:.1f}%, "
-                  f"cross-org CV = {r['cross_org_cv']:.1f}%")
-            if r['decomp']:
-                print(f"  Seg/Real = {r['decomp']['seg_real']:.2f}x, "
-                      f"S/Real = {r['decomp']['s_real']:.2f}x")
-    else:
-        print("  WARNING: No cached W found. Skipping baseline.")
-        print(f"  Searched: {w_cache}")
-        print(f"  Use --w-path to specify, e.g.:")
-        print(f"    python w_independence.py --w-path path/to/superpotential_W.npz")
+    test_set = all_files_shuffled[:args.sample]
+    r = run_test("Baseline (full W)", W_baseline, gs_baseline,
+                 test_set, organisms, rng)
+    if r:
+        test_results.append(r)
+        print(f"  BPS/L = {r['global_mean']:.3f}, CV = {r['global_cv']:.1f}%, "
+              f"cross-org CV = {r['cross_org_cv']:.1f}%")
+        if r['decomp']:
+            print(f"  Seg/Real = {r['decomp']['seg_real']:.2f}x, "
+                  f"S/Real = {r['decomp']['s_real']:.2f}x")
 
     # ══════════════════════════════════════════════════════════════
     # TEST 1: 10% train, 90% test

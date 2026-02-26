@@ -137,16 +137,13 @@ def classify_fold(ss_seq, alpha_thresh=0.15, beta_thresh=0.15):
 
 
 def compute_bps_l(phi_arr, psi_arr, W_grid, grid_size):
-    """BPS/L from arrays of phi, psi in radians."""
+    """BPS/L from arrays of phi, psi in radians. Normalizes by L."""
     if len(phi_arr) < 2:
         return 0.0
-    scale = grid_size / 360.0
-    phi_d = np.degrees(phi_arr)
-    psi_d = np.degrees(psi_arr)
-    gi = (np.round((phi_d + 180) * scale).astype(int)) % grid_size
-    gj = (np.round((psi_d + 180) * scale).astype(int)) % grid_size
-    w = W_grid[gi, gj]
-    return float(np.mean(np.abs(np.diff(w))))
+    from bps.superpotential import lookup_W_grid
+    w = lookup_W_grid(W_grid, grid_size, phi_arr, psi_arr)
+    L = len(phi_arr)
+    return float(np.sum(np.abs(np.diff(w)))) / L
 
 
 def cohens_d(group1, group2):
@@ -220,39 +217,11 @@ def main():
     print("  TorusFold: Within-Fold-Class Cross-Organism CV")
     print("=" * 60)
 
-    # Load W (search multiple locations)
-    w_path = args.w_path or os.path.join(args.output, "superpotential_W.npz")
-    W_grid = None
-
-    if os.path.exists(w_path):
-        data = np.load(w_path)
-        W_grid = data['grid']
-        print(f"  Loaded W: {W_grid.shape[0]}x{W_grid.shape[0]} from {w_path}")
-    else:
-        # Search common locations
-        search_paths = [
-            os.path.join(args.output, "superpotential_W.npz"),
-            os.path.join(args.data, '..', 'results', 'superpotential_W.npz'),
-            os.path.join(args.data, '..', 'superpotential_W.npz'),
-            'superpotential_W.npz',
-        ]
-        for sp in search_paths:
-            sp = os.path.normpath(sp)
-            if os.path.exists(sp):
-                print(f"  Found W at {sp}")
-                data = np.load(sp)
-                W_grid = data['grid']
-                print(f"  Loaded W: {W_grid.shape[0]}x{W_grid.shape[0]}")
-                break
-
-    if W_grid is None:
-        print(f"ERROR: superpotential_W.npz not found.")
-        print(f"  Searched: {w_path}")
-        print(f"  Use --w-path to specify the location, e.g.:")
-        print(f"    python within_foldclass_cv.py --w-path path/to/superpotential_W.npz")
-        sys.exit(1)
-
+    # Build W from shared von Mises construction
+    from bps.superpotential import build_superpotential as _build_W
+    W_grid, _, _ = _build_W(360)
     grid_size = W_grid.shape[0]
+    print(f"  Built W: {grid_size}x{grid_size} (von Mises -sqrt(P))")
 
     # Discover files
     organisms = discover_files(args.data)
