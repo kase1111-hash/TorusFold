@@ -120,9 +120,14 @@ def build_W_from_angles(all_phi_psi, grid_size=360, smooth_sigma=1.5):
         gj = int(round((psi_d + 180) * scale)) % grid_size
         grid[gi, gj] += 1
 
+    # Normalize to proper probability density (integral over torus = 1).
+    # Must divide by (total * dphi * dpsi), not just total, so the grid
+    # represents density per radian^2 — matching bps/superpotential.py.
     total = grid.sum()
     if total > 0:
-        grid /= total
+        dphi = 2 * np.pi / grid_size
+        dpsi = 2 * np.pi / grid_size
+        grid /= total * dphi * dpsi
 
     grid = np.maximum(grid, np.max(grid) * 1e-6 if grid.max() > 0 else 1e-10)
     W = -np.sqrt(grid)
