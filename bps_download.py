@@ -513,13 +513,14 @@ PLAXCO_23 = [
 ]
 
 
-def download_uniprot_ids(uniprot_ids, target_dir, labels=None):
+def download_uniprot_ids(uniprot_ids, target_dir, labels=None, max_retries=3):
     """Download AlphaFold CIF files for a list of UniProt IDs.
 
     Args:
         uniprot_ids: list of UniProt accessions (e.g. ["P00648", "P06654"])
         target_dir: Path to download into (created if needed)
         labels: optional dict {uid: label} for display
+        max_retries: retry transient failures up to this many times
 
     Returns:
         (n_ok, n_skip, n_fail)
@@ -539,7 +540,17 @@ def download_uniprot_ids(uniprot_ids, target_dir, labels=None):
             n_skip += 1
             continue
 
-        path, version, err = download_one(uid, target_dir)
+        path, version, err = None, None, None
+        for attempt in range(max_retries + 1):
+            path, version, err = download_one(uid, target_dir)
+            if path or err == '404':
+                break
+            if attempt < max_retries:
+                wait = BACKOFF_BASE ** (attempt + 1)
+                logging.info(f"  {uid} ({label}): retry {attempt+1}/{max_retries} "
+                             f"in {wait}s...")
+                time.sleep(wait)
+
         if path:
             logging.info(f"  {uid} ({label}): OK (v{version})")
             n_ok += 1
