@@ -567,7 +567,7 @@ def null_clustering_control(all_loops, n_shuffles=100, rng=None):
     log.info(f"    Real tight families: {real_n_tight}")
     log.info(f"    Null tight families: {np.mean(null_arr):.1f} "
              f"+/- {np.std(null_arr):.1f}")
-    log.info(f"    p-value: {p_value:.3f}")
+    log.info(f"    p-value: {p_value:.2e}")
 
     return {
         'real_n_tight': real_n_tight,

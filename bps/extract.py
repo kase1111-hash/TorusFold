@@ -444,7 +444,7 @@ if __name__ == "__main__":
         print("  PASS: BPS/L in expected range")
     else:
         print(f"  WARNING: BPS/L = {bps_l:.3f} outside expected "
-              f"[{bps_lo:.2f}, {bps_hi:.2f}]")
+              f"[{bps_lo:.3f}, {bps_hi:.3f}]")
         ok = False
 
     # --- Test 6: Invalid chain raises ValueError ---

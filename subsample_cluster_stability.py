@@ -116,11 +116,11 @@ def extract_angles(filepath, plddt_min=70.0):
             continue
         phi_d, psi_d = math.degrees(phi), math.degrees(psi)
         if -160 < phi_d < 0 and -120 < psi_d < 30:
-            ss = 'a'
+            ss = 'alpha'
         elif -170 < phi_d < -70 and (psi_d > 90 or psi_d < -120):
-            ss = 'b'
+            ss = 'beta'
         else:
-            ss = 'o'
+            ss = 'other'
         phi_psi.append((phi, psi))
         ss_seq.append(ss)
     return phi_psi, ss_seq
@@ -162,9 +162,9 @@ def extract_loop_segments(phi_psi, ss_seq, W_grid, grid_size, min_loop_len=3):
     # Find contiguous loop runs
     i = 0
     while i < n:
-        if ss_seq[i] == 'o':
+        if ss_seq[i] == 'other':
             j = i
-            while j < n and ss_seq[j] == 'o':
+            while j < n and ss_seq[j] == 'other':
                 j += 1
             loop_len = j - i
             if loop_len >= min_loop_len:

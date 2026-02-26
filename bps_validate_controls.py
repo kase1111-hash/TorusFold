@@ -506,7 +506,7 @@ def test_shuffled_control(sample, W_interp):
         verdict = 'FAIL'
 
     logging.info(f"  Result: mean_real={mean_real:.4f}, mean_shuffled={mean_shuf:.4f}, "
-                 f"Cohen's d={cohens_d:.3f}, p={p_value}")
+                 f"Cohen's d={cohens_d:.3f}, p={p_value:.2e}")
     logging.info(f"  Verdict: {verdict}")
 
     return {
@@ -604,7 +604,7 @@ def test_w_robustness(sample, W_baseline):
             cv_pct = None
 
         elapsed = time.time() - t0
-        logging.info(f"    Mean BPS/L = {mean_bps:.4f}, CV = {cv_pct:.1f}% ({elapsed:.1f}s)")
+        logging.info(f"    Mean BPS/L = {mean_bps:.3f}, CV = {cv_pct:.1f}% ({elapsed:.1f}s)")
 
         results_table.append({
             'name': var['name'],
@@ -883,9 +883,9 @@ def test_gly_pro(sample, W_interp):
         verdict = 'NOTABLE — composition affects BPS/L'
 
     for row in gly_table:
-        logging.info(f"  Gly {row['bin']}: N={row['n']}, mean BPS/L={row['mean_bps']:.4f}")
+        logging.info(f"  Gly {row['bin']}: N={row['n']}, mean BPS/L={row['mean_bps']:.3f}")
     for row in pro_table:
-        logging.info(f"  Pro {row['bin']}: N={row['n']}, mean BPS/L={row['mean_bps']:.4f}")
+        logging.info(f"  Pro {row['bin']}: N={row['n']}, mean BPS/L={row['mean_bps']:.3f}")
     logging.info(f"  Verdict: {verdict}")
 
     return {
@@ -1017,8 +1017,8 @@ def test_transition_matrix(sample, W_interp):
     else:
         verdict = 'INCONCLUSIVE'
 
-    logging.info(f"  Predicted BPS/L = {predicted_bps:.4f}")
-    logging.info(f"  Observed BPS/L  = {observed_mean:.4f}" if observed_mean else
+    logging.info(f"  Predicted BPS/L = {predicted_bps:.3f}")
+    logging.info(f"  Observed BPS/L  = {observed_mean:.3f}" if observed_mean else
                  "  Observed BPS/L  = N/A")
     logging.info(f"  Error: {pct_error:.1f}%" if pct_error else "  Error: N/A")
     logging.info(f"  Verdict: {verdict}")
@@ -1362,8 +1362,8 @@ def write_report(results, db_stats, outpath="validation_report.md"):
         add(f"| Metric | Value |")
         add(f"|--------|-------|")
         add(f"| Proteins tested | {r1.get('n_proteins', '?')} |")
-        add(f"| Mean real BPS/L | {r1.get('mean_real', 0):.4f} ± {r1.get('std_real', 0):.4f} |")
-        add(f"| Mean shuffled BPS/L | {r1.get('mean_shuffled', 0):.4f} ± {r1.get('std_shuffled', 0):.4f} |")
+        add(f"| Mean real BPS/L | {r1.get('mean_real', 0):.3f} ± {r1.get('std_real', 0):.3f} |")
+        add(f"| Mean shuffled BPS/L | {r1.get('mean_shuffled', 0):.3f} ± {r1.get('std_shuffled', 0):.3f} |")
         add(f"| Cohen's d | {r1.get('cohens_d', 0):.3f} |")
         pv = r1.get('p_value')
         pv_str = f"{pv:.2e}" if pv is not None else "N/A"
@@ -1412,9 +1412,9 @@ def write_report(results, db_stats, outpath="validation_report.md"):
             add("| W variant | Mean BPS/L | CV (%) | Δ from baseline |")
             add("|-----------|-----------|--------|-----------------|")
             for row in table:
-                mean_s = f"{row['mean_bps']:.4f}" if row['mean_bps'] is not None else "N/A"
+                mean_s = f"{row['mean_bps']:.3f}" if row['mean_bps'] is not None else "N/A"
                 cv_s = f"{row['cv_pct']:.1f}" if row['cv_pct'] is not None else "N/A"
-                delta_s = f"{row['delta']:+.4f}" if row['delta'] is not None else "—"
+                delta_s = f"{row['delta']:+.3f}" if row['delta'] is not None else "—"
                 add(f"| {row['name']} | {mean_s} | {cv_s} | {delta_s} |")
             add()
 
@@ -1452,7 +1452,7 @@ def write_report(results, db_stats, outpath="validation_report.md"):
             add("| Fold class | N proteins | N organisms | Mean BPS/L | Cross-org CV (%) |")
             add("|------------|-----------|-------------|-----------|-----------------|")
             for row in table:
-                mean_s = f"{row['mean_bps']:.4f}" if row['mean_bps'] is not None else "N/A"
+                mean_s = f"{row['mean_bps']:.3f}" if row['mean_bps'] is not None else "N/A"
                 cv_s = f"{row['cv_pct']:.1f}" if row['cv_pct'] is not None else "N/A"
                 add(f"| {row['fold_class']} | {row['n_proteins']} | "
                     f"{row['n_organisms']} | {mean_s} | {cv_s} |")
@@ -1495,8 +1495,8 @@ def write_report(results, db_stats, outpath="validation_report.md"):
             add("| Quartile | N | Mean BPS/L | Std |")
             add("|----------|---|-----------|-----|")
             for row in gly_table:
-                add(f"| {row['bin']} | {row['n']} | {row['mean_bps']:.4f} | "
-                    f"{row['std_bps']:.4f} |")
+                add(f"| {row['bin']} | {row['n']} | {row['mean_bps']:.3f} | "
+                    f"{row['std_bps']:.3f} |")
             add()
 
         pro_table = r4.get('pro_table', [])
@@ -1506,8 +1506,8 @@ def write_report(results, db_stats, outpath="validation_report.md"):
             add("| Quartile | N | Mean BPS/L | Std |")
             add("|----------|---|-----------|-----|")
             for row in pro_table:
-                add(f"| {row['bin']} | {row['n']} | {row['mean_bps']:.4f} | "
-                    f"{row['std_bps']:.4f} |")
+                add(f"| {row['bin']} | {row['n']} | {row['mean_bps']:.3f} | "
+                    f"{row['std_bps']:.3f} |")
             add()
 
         add(f"**Glycine Q1–Q4 spread:** {r4.get('gly_spread', 0):.4f}")
@@ -1620,8 +1620,8 @@ def write_report(results, db_stats, outpath="validation_report.md"):
 
         add("| Metric | Real | Markov Synthetic |")
         add("|--------|------|------------------|")
-        add(f"| Mean BPS/L | {r6.get('mean_real', 0):.4f} | {r6.get('mean_synth', 0):.4f} |")
-        add(f"| Std BPS/L | {r6.get('std_real', 0):.4f} | {r6.get('std_synth', 0):.4f} |")
+        add(f"| Mean BPS/L | {r6.get('mean_real', 0):.3f} | {r6.get('mean_synth', 0):.3f} |")
+        add(f"| Std BPS/L | {r6.get('std_real', 0):.3f} | {r6.get('std_synth', 0):.3f} |")
         add(f"| CV (%) | {r6.get('cv_real', 0):.1f} | {r6.get('cv_synth', 0):.1f} |")
         cross_r = r6.get('cross_cv_real')
         cross_s = r6.get('cross_cv_synth')

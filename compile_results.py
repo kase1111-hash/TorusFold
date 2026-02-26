@@ -113,7 +113,7 @@ def sec_overview(conn, out):
     """).fetchone()
     if row[0]:
         sd = math.sqrt(max(row[1] or 0, 0))
-        out.append(f"\nGlobal BPS/res: {row[0]:.4f} +/- {sd:.4f}  (range {row[2]:.4f} - {row[3]:.4f})")
+        out.append(f"\nGlobal BPS/res: {row[0]:.3f} +/- {sd:.3f}  (range {row[2]:.3f} - {row[3]:.3f})")
         if row[4]: out.append(f"Global pLDDT:   {row[4]:.1f}")
         if row[5] is not None: out.append(f"Global SS:      {row[5]:.1f}% helix, {row[6]:.1f}% sheet")
         if row[7]: out.append(f"Global CO:      {row[7]:.4f}")
@@ -260,8 +260,8 @@ def sec_kingdom(conn, out):
 
     if bact_bps and euk_bps:
         out.append(f"\nBacteria vs Eukaryote (organism-level means):")
-        out.append(f"  Bacteria:  {np.mean(bact_bps):.4f} +/- {np.std(bact_bps):.4f} (n={len(bact_bps)})")
-        out.append(f"  Eukaryote: {np.mean(euk_bps):.4f} +/- {np.std(euk_bps):.4f} (n={len(euk_bps)})")
+        out.append(f"  Bacteria:  {np.mean(bact_bps):.3f} +/- {np.std(bact_bps):.3f} (n={len(bact_bps)})")
+        out.append(f"  Eukaryote: {np.mean(euk_bps):.3f} +/- {np.std(euk_bps):.3f} (n={len(euk_bps)})")
         if len(bact_bps) >= 2 and len(euk_bps) >= 2:
             t, p_t = ttest_ind(bact_bps, euk_bps)
             u, p_u = mannwhitneyu(bact_bps, euk_bps, alternative='two-sided')
@@ -786,7 +786,7 @@ def sec_af_versions(conn, out):
         out.append(f"\nGlobal version summary:")
         for ver, n, mb, mp in global_rows:
             p_s = f"{mp:.1f}" if mp else "--"
-            out.append(f"  v{ver}: N={n:,}, BPS/res={mb:.4f}, pLDDT={p_s}")
+            out.append(f"  v{ver}: N={n:,}, BPS/res={mb:.3f}, pLDDT={p_s}")
 
     # Check for mixed versions within organisms
     mixed = conn.execute("""

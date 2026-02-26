@@ -388,8 +388,8 @@ def report(proteins, all_synth_bps, per_protein_synth):
     print("  VERDICT")
     print("=" * 70)
     if mean_gap_pct > 20:
-        print(f"  Mean BPS/L gap: {mean_gap_pct:.1f}%  (Markov {mean_synth_protein:.4f} "
-              f"vs Real {mean_real:.4f})")
+        print(f"  Mean BPS/L gap: {mean_gap_pct:.1f}%  (Markov {mean_synth_protein:.3f} "
+              f"vs Real {mean_real:.3f})")
         print("  → Markov chain OVER-PREDICTS BPS/L by a large margin.")
         print("    Real proteins suppress intra-basin roughness via secondary")
         print("    structure coherence that first-order transitions cannot capture.")
@@ -487,8 +487,8 @@ def main():
     # Real proteome stats
     real_bps = np.array([p['bps_l'] for p in proteins])
     logging.info(f"  Real proteome: N={len(proteins)}, "
-                 f"mean BPS/L={np.mean(real_bps):.4f}, "
-                 f"std={np.std(real_bps, ddof=1):.4f}, "
+                 f"mean BPS/L={np.mean(real_bps):.3f}, "
+                 f"std={np.std(real_bps, ddof=1):.3f}, "
                  f"CV={np.std(real_bps, ddof=1)/np.mean(real_bps)*100:.1f}%")
 
     # Basin stats

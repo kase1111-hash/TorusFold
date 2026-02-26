@@ -112,11 +112,11 @@ def extract_dihedrals(filepath, plddt_min=70.0):
 
         # SS assignment
         if -160 < phi_d < 0 and -120 < psi_d < 30:
-            ss = 'a'
+            ss = 'alpha'
         elif -170 < phi_d < -70 and (psi_d > 90 or psi_d < -120):
-            ss = 'b'
+            ss = 'beta'
         else:
-            ss = 'o'
+            ss = 'other'
 
         phi_psi.append((phi, psi))
         ss_seq.append(ss)
@@ -421,9 +421,9 @@ def analyze_protein(filepath, W, n_trials=10, rng=None):
         'n_segments': len(segments),
         'mean_seg_len': float(np.mean(seg_lengths)),
         'ss_composition': {
-            'a': ss_seq.count('a') / len(ss_seq),
-            'b': ss_seq.count('b') / len(ss_seq),
-            'o': ss_seq.count('o') / len(ss_seq),
+            'alpha': ss_seq.count('alpha') / len(ss_seq),
+            'beta': ss_seq.count('beta') / len(ss_seq),
+            'other': ss_seq.count('other') / len(ss_seq),
         },
     }
 

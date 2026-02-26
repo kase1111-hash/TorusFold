@@ -384,13 +384,13 @@ def assign_ss(phi_rad: float, psi_rad: float) -> str:
 
     # Alpha basin
     if -160 < phi < 0 and -120 < psi < 30:
-        return 'a'
+        return 'alpha'
 
     # Beta basin (single condition, handles wrap)
     if -170 < phi < -70 and (psi > 90 or psi < -120):
-        return 'b'
+        return 'beta'
 
-    return 'o'
+    return 'other'
 
 
 def classify_fold(frac_alpha: float, frac_beta: float) -> str:
@@ -460,10 +460,10 @@ def extract_loops(angles: list[ResidueAngles], W: Superpotential,
     start = 0
     for i in range(1, len(ss)):
         if ss[i] != ss[start]:
-            if ss[start] in ('a', 'b') and (i - start) >= 2:
+            if ss[start] in ('alpha', 'beta') and (i - start) >= 2:
                 segments.append((start, i - 1, ss[start]))
             start = i
-    if ss[start] in ('a', 'b') and (len(ss) - start) >= 2:
+    if ss[start] in ('alpha', 'beta') and (len(ss) - start) >= 2:
         segments.append((start, len(ss) - 1, ss[start]))
 
     # Find loops between consecutive α/β segments
@@ -489,7 +489,7 @@ def extract_loops(angles: list[ResidueAngles], W: Superpotential,
             continue
 
         # Direction
-        direction = f"{s1_type}{s2_type}"  # 'ab' or 'ba'
+        direction = f"{s1_type}->{s2_type}"  # 'alpha->beta' or 'beta->alpha'
 
         # Compute |ΔW| across loop
         w_start = W(angles[s1_end].phi, angles[s1_end].psi)
@@ -616,9 +616,9 @@ def process_protein(filepath: str, organism: str, W: Superpotential,
     # SS composition
     ss = [assign_ss(a.phi, a.psi) for a in angles]
     n = len(ss)
-    frac_a = ss.count('a') / n
-    frac_b = ss.count('b') / n
-    frac_o = ss.count('o') / n
+    frac_a = ss.count('alpha') / n
+    frac_b = ss.count('beta') / n
+    frac_o = ss.count('other') / n
 
     fold = classify_fold(frac_a, frac_b)
     mean_plddt = np.mean([a.plddt for a in angles])
@@ -867,7 +867,7 @@ def analyze_results(results: list[ProteinResult], loops: list[LoopResult],
         f.write("uniprot_id,organism,chain_length,n_residues,bps_l,frac_alpha,frac_beta,frac_other,fold_class,mean_plddt\n")
         for r in valid:
             f.write(f"{r.uniprot_id},{r.organism},{r.chain_length},{r.n_residues_used},"
-                    f"{r.bps_l:.4f},{r.frac_alpha:.3f},{r.frac_beta:.3f},{r.frac_other:.3f},"
+                    f"{r.bps_l:.3f},{r.frac_alpha:.3f},{r.frac_beta:.3f},{r.frac_other:.3f},"
                     f"{r.fold_class},{r.mean_plddt:.1f}\n")
     print(f"  Wrote {csv_path}")
 

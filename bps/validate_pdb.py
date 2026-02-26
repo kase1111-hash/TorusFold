@@ -178,7 +178,7 @@ def _generate_synthetic_proteins(
     basin_params = {
         "alpha": (-63.0, -43.0, 3.0, 3.0),   # mu_phi, mu_psi, std_phi, std_psi
         "beta":  (-120.0, 130.0, 4.0, 4.0),
-        "coil":  (-80.0, 60.0, 15.0, 15.0),
+        "other":  (-80.0, 60.0, 15.0, 15.0),
     }
 
     proteins = []
@@ -206,7 +206,7 @@ def _generate_synthetic_proteins(
                 ss_type = "beta"
                 seg_len = rng.integers(4, 14)
             else:
-                ss_type = "coil"
+                ss_type = "other"
                 seg_len = rng.integers(2, 6)
 
             seg_len = min(seg_len, length - pos)

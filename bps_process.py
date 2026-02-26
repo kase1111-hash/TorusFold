@@ -922,7 +922,7 @@ def analyze_proteome(results, organism):
     BPS = np.array([r['bps_energy'] for r in results])
 
     logging.info(f"  Length: mean={L.mean():.0f}, median={np.median(L):.0f}")
-    logging.info(f"  BPS/res: mean={bps_norm.mean():.4f}, std={bps_norm.std():.4f}")
+    logging.info(f"  BPS/res: mean={bps_norm.mean():.3f}, std={bps_norm.std():.3f}")
 
     plddt = np.array([r.get('plddt_mean', 0) or 0 for r in results])
     if np.any(plddt > 0):
@@ -944,7 +944,7 @@ def analyze_proteome(results, organism):
     for lo, hi, label in [(0,100,"Small"), (100,300,"Medium"), (300,1000,"Large"), (1000,99999,"XL")]:
         m = (L >= lo) & (L < hi)
         if np.sum(m) > 0:
-            logging.info(f"    {label:<8} n={np.sum(m):>5}  BPS/res={bps_norm[m].mean():.4f}+/-{bps_norm[m].std():.4f}")
+            logging.info(f"    {label:<8} n={np.sum(m):>5}  BPS/res={bps_norm[m].mean():.3f}+/-{bps_norm[m].std():.3f}")
 
     r_bl, _ = pearsonr(L, BPS)
     logging.info(f"  r(BPS, L) = {r_bl:.3f}")
@@ -1035,7 +1035,7 @@ def run_validation(W_interp, conn):
         result['ln_kf'] = ln_kf
         result['co'] = co
         results.append(result)
-        logging.info(f"  {uid}/{pdb}: L={result['L']} BPS/res={result['bps_norm']:.4f} "
+        logging.info(f"  {uid}/{pdb}: L={result['L']} BPS/res={result['bps_norm']:.3f} "
                      f"pLDDT={result['plddt_mean']:.1f} helix={result['pct_helix']:.1f}%")
 
     if len(results) < 5:
@@ -1121,7 +1121,7 @@ def show_status(conn):
         # BPS/res mean
         row = conn.execute(
             "SELECT AVG(bps_norm) FROM proteins WHERE organism=?", (org,)).fetchone()
-        bps_s = f"{row[0]:.4f}" if row[0] else "—"
+        bps_s = f"{row[0]:.3f}" if row[0] else "—"
 
         # Percentages (use IDs as denominator if available, else advertised)
         denom_cache = n_ids if n_ids > 0 else n_advert

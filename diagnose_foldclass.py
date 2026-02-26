@@ -111,11 +111,11 @@ for i in range(1, len(residues) - 1):
     all_psi.append(psi_d)
 
     if -160 < phi_d < 0 and -120 < psi_d < 30:
-        ss = 'a'
+        ss = 'alpha'
     elif -170 < phi_d < -70 and (psi_d > 90 or psi_d < -120):
-        ss = 'b'
+        ss = 'beta'
     else:
-        ss = 'o'
+        ss = 'other'
     ss_counts[ss] += 1
 
     if i <= 20:
@@ -156,11 +156,11 @@ try:
         psi_gd = math.degrees(psi_g)
 
         if -160 < phi_gd < 0 and -120 < psi_gd < 30:
-            ss = 'a'
+            ss = 'alpha'
         elif -170 < phi_gd < -70 and (psi_gd > 90 or psi_gd < -120):
-            ss = 'b'
+            ss = 'beta'
         else:
-            ss = 'o'
+            ss = 'other'
         gemmi_ss[ss] += 1
 
         if i <= 20:

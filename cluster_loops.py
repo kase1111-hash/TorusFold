@@ -168,7 +168,7 @@ def null_clustering_control(df, n_shuffles=100, eps_values=None,
 
     print(f"  NULL CONTROL: Real = {real_n_tight} tight families, "
           f"Null = {np.mean(null_arr):.1f} +/- {np.std(null_arr):.1f}, "
-          f"p = {p_value:.3f}")
+          f"p = {p_value:.2e}")
 
     return {
         'real_n_tight': real_n_tight,

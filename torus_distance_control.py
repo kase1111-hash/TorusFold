@@ -116,11 +116,11 @@ def extract_angles(filepath, plddt_min=70.0):
             continue
         phi_d, psi_d = math.degrees(phi), math.degrees(psi)
         if -160 < phi_d < 0 and -120 < psi_d < 30:
-            ss = 'a'
+            ss = 'alpha'
         elif -170 < phi_d < -70 and (psi_d > 90 or psi_d < -120):
-            ss = 'b'
+            ss = 'beta'
         else:
-            ss = 'o'
+            ss = 'other'
         phi_psi.append((phi, psi))
         ss_seq.append(ss)
     return phi_psi, ss_seq
@@ -526,7 +526,7 @@ def main():
     helix_threshold = 0.70  # ≥70% helix → "helix-dominated"
     helix_proteins = []
     for prot in proteins:
-        frac_a = prot['ss'].count('a') / len(prot['ss'])
+        frac_a = prot['ss'].count('alpha') / len(prot['ss'])
         if frac_a >= helix_threshold:
             helix_proteins.append(prot)
 
