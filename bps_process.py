@@ -290,6 +290,9 @@ def build_superpotential():
         p += c['weight'] * np.exp(c['kappa_phi']*np.cos(dp) + c['kappa_psi']*np.cos(ds) + c['rho']*np.sin(dp)*np.sin(ds))
     p /= np.sum(p) * (phi_grid[1]-phi_grid[0]) * (psi_grid[1]-psi_grid[0])
     p = np.maximum(p, np.max(p) * 1e-6)
+    # W = -sqrt(P): primary superpotential form (compressed dynamic range).
+    # Alternative: W = -ln(P + eps) used in bps/superpotential.py and analysis scripts.
+    # Three-level decomposition is transform-invariant across W choices.
     W = -np.sqrt(p)
     W = gaussian_filter(W, sigma=1.5)
     return RegularGridInterpolator((psi_grid, phi_grid), W, method='linear', bounds_error=False, fill_value=None)
@@ -551,7 +554,7 @@ def compute_bps(phi_psi_list, W_interp):
     phi_d, psi_d = np.degrees(phis), np.degrees(psis)
     n_res = len(phis)
     ss = np.zeros(n_res, dtype=int)
-    ss[(-100 < phi_d) & (phi_d < -30) & (-67 < psi_d) & (psi_d < -7)] = 1   # helix
+    ss[(-160 < phi_d) & (phi_d < 0) & (-120 < psi_d) & (psi_d < 30)] = 1   # helix (wide)
     ss[(-170 < phi_d) & (phi_d < -70) & ((psi_d > 90) | (psi_d < -120))] = 2 # sheet
     ss_nc = ss[ss > 0]
     n_trans = int(np.sum(np.diff(ss_nc) != 0)) if len(ss_nc) > 1 else 0
@@ -635,8 +638,8 @@ def verify_dihedrals_batch(cif_paths, W_interp, n_test=5):
             continue
         phi_arr = np.array([v[0] for v in valid_pairs])
         psi_arr = np.array([v[1] for v in valid_pairs])
-        helix_mask = ((-100 < phi_arr) & (phi_arr < -30) &
-                      (-67 < psi_arr) & (psi_arr < -7))
+        helix_mask = ((-160 < phi_arr) & (phi_arr < 0) &
+                      (-120 < psi_arr) & (psi_arr < 30))
         sheet_mask = ((-170 < phi_arr) & (phi_arr < -70) &
                       ((psi_arr > 90) | (psi_arr < -120)))
         total_helix += int(np.sum(helix_mask))
@@ -714,8 +717,10 @@ def process_one(cif_path, W_interp):
         return None, 'short'
     if not np.isfinite(bps['bps_energy']):
         return None, 'parse'
-    if not (0.02 < bps_norm < 0.50):
-        return None, 'range'
+    # Flag extreme BPS/L values but do not exclude them.
+    # Previous behavior silently excluded these as 'range' errors,
+    # hiding potential counterexamples to the universality claim.
+    is_outlier = not (0.02 < bps_norm < 0.50)
 
     plddt_arr = np.array(plddts)
 
@@ -755,6 +760,7 @@ def process_one(cif_path, W_interp):
         'pct_coil': bps['pct_coil'],
         'rg': rg_val,
         'contact_order': co_val,
+        'is_outlier': is_outlier,
     }, None
 
 

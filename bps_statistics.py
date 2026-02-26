@@ -785,7 +785,8 @@ def main():
         for fn in run_list:
             try:
                 if fn == run_fold_class_analysis:
-                    fn(conn, out, max(args.plddt_threshold, 85))
+                    # Use user-specified threshold; do not force pLDDT >= 85
+                    fn(conn, out, args.plddt_threshold)
                 else:
                     fn(conn, out, args.plddt_threshold)
             except Exception as e:

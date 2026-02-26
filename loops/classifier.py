@@ -386,7 +386,14 @@ def main() -> None:
     print(f"  Loops in tight families: {len(tight_loops)}")
 
     # --- Step 3: Train and evaluate classifier ---
+    # NOTE: The classifier trains on labels from the same clustering run.
+    # Good cross-validation accuracy demonstrates that the features are
+    # consistent with the cluster assignments, but does NOT independently
+    # validate the existence of clusters. A stronger test would use
+    # held-out data clustered independently (split data in half, cluster
+    # each half, train on one, test on other).
     print("\nRunning classifier with cross-validation...")
+    print("  NOTE: Labels come from clustering, not independent ground truth.")
     result = run_classifier(tight_loops, tight_labels)
 
     if "error" in result:

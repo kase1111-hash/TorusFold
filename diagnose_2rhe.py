@@ -318,9 +318,9 @@ def check_actual_structure():
         if phi is None or psi is None:
             n_coil += 1
             continue
-        if -100 < phi < -30 and -67 < psi < -7:
+        if -160 < phi < 0 and -120 < psi < 30:
             n_helix += 1
-        elif (-170 < phi < -70 and 90 < psi < 180) or (-170 < phi < -70 and -180 < psi < -120):
+        elif -170 < phi < -70 and (psi > 90 or psi < -120):
             n_sheet += 1
         else:
             n_coil += 1

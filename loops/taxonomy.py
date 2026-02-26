@@ -442,6 +442,58 @@ def recursive_subcluster(
 
 
 # ---------------------------------------------------------------------------
+# Null control for clustering
+# ---------------------------------------------------------------------------
+
+def null_clustering_control(
+    loops: List[Dict],
+    D: np.ndarray,
+    W_grid: np.ndarray,
+    phi_grid: np.ndarray,
+    psi_grid: np.ndarray,
+    n_shuffles: int = 100,
+) -> Dict:
+    """Run the same clustering pipeline on shuffled data.
+
+    Permutes loop feature vectors to measure the false-positive rate
+    of the eps-search + recursive subclustering pipeline.
+
+    Returns dict with real_n_tight, null_mean, null_std, p_value.
+    """
+    rng = np.random.default_rng(42)
+
+    # Real clustering
+    labels, eps, n_clusters = cluster_loops(D)
+    _, real_stats = recursive_subcluster(
+        loops, D, labels, W_grid, phi_grid, psi_grid)
+    real_n_tight = sum(1 for s in real_stats if s["tight"])
+
+    null_tight_counts = []
+    for s_idx in range(n_shuffles):
+        # Shuffle: independently permute each column of the distance matrix
+        n = len(loops)
+        perm = rng.permutation(n)
+        D_shuf = D[np.ix_(perm, perm)]
+
+        shuf_labels, _, _ = cluster_loops(D_shuf)
+        _, shuf_stats = recursive_subcluster(
+            [loops[i] for i in perm], D_shuf, shuf_labels,
+            W_grid, phi_grid, psi_grid)
+        null_n_tight = sum(1 for st in shuf_stats if st["tight"])
+        null_tight_counts.append(null_n_tight)
+
+    null_arr = np.array(null_tight_counts)
+    p_value = float(np.mean(null_arr >= real_n_tight))
+
+    return {
+        "real_n_tight": real_n_tight,
+        "null_mean": float(np.mean(null_arr)),
+        "null_std": float(np.std(null_arr)),
+        "p_value": p_value,
+    }
+
+
+# ---------------------------------------------------------------------------
 # Torus visualization
 # ---------------------------------------------------------------------------
 

@@ -91,7 +91,6 @@ def set_pub_style():
 COLORS = {
     'real': '#2166AC',       # strong blue
     'segment': '#F4A582',    # salmon
-    'm2': '#D6604D',         # medium red
     'm1': '#B2182B',         # dark red
     'shuffled': '#878787',   # gray
     'bacteria': '#D6604D',   # red-ish
@@ -524,30 +523,75 @@ def generate_fig1(data_dir, W_grid, grid_size, sample_proteins, fig_dir):
     # ── Panel C: Roughness decomposition bar chart ──
     ax_c = fig.add_subplot(gs[2])
 
-    # These are the canonical values from the paper
-    labels = ['Real', 'Seg', 'M2', 'M1', 'Shuf']
-    values = [1.28, 1.80, 1.80, 1.80, 2.06]
-    colors = [COLORS['real'], COLORS['segment'], COLORS['m2'],
+    # Compute decomposition values from actual data
+    decomp_real = []
+    decomp_seg = []
+    decomp_m1 = []
+    decomp_shuf = []
+    decomp_rng = np.random.default_rng(42)
+
+    for pp, ss in zip(all_phi_psi_list, all_ss_list):
+        if len(pp) < 50:
+            continue
+        phi = np.array([p[0] for p in pp])
+        psi = np.array([p[1] for p in pp])
+        bps_r, _ = compute_bps_l(phi, psi, W_grid, grid_size)
+        decomp_real.append(bps_r)
+
+        seg_pp = null_segment_preserving(pp, ss, decomp_rng)
+        seg_phi = np.array([p[0] for p in seg_pp])
+        seg_psi = np.array([p[1] for p in seg_pp])
+        bps_s, _ = compute_bps_l(seg_phi, seg_psi, W_grid, grid_size)
+        decomp_seg.append(bps_s)
+
+        m1_pp = null_markov_1(pp, ss, decomp_rng)
+        m1_phi = np.array([p[0] for p in m1_pp])
+        m1_psi = np.array([p[1] for p in m1_pp])
+        bps_m, _ = compute_bps_l(m1_phi, m1_psi, W_grid, grid_size)
+        decomp_m1.append(bps_m)
+
+        shuf_pp = null_shuffled(list(pp), decomp_rng)
+        shuf_phi = np.array([p[0] for p in shuf_pp])
+        shuf_psi = np.array([p[1] for p in shuf_pp])
+        bps_sh, _ = compute_bps_l(shuf_phi, shuf_psi, W_grid, grid_size)
+        decomp_shuf.append(bps_sh)
+
+    if not decomp_real:
+        print("    WARNING: No data for Panel C decomposition.")
+        plt.savefig(os.path.join(fig_dir, 'fig1_conceptual.png'))
+        plt.close()
+        return
+
+    mean_real = float(np.mean(decomp_real))
+    mean_seg = float(np.mean(decomp_seg))
+    mean_m1 = float(np.mean(decomp_m1))
+    mean_shuf = float(np.mean(decomp_shuf))
+
+    labels = ['Real', 'Seg', 'M1', 'Shuf']
+    values = [mean_real, mean_seg, mean_m1, mean_shuf]
+    colors = [COLORS['real'], COLORS['segment'],
               COLORS['m1'], COLORS['shuffled']]
 
     bars = ax_c.bar(labels, values, color=colors, edgecolor='white',
                     linewidth=0.5, width=0.7)
     ax_c.set_ylabel('BPS/L')
-    ax_c.set_ylim(0, 2.4)
+    ax_c.set_ylim(0, max(values) * 1.25)
     ax_c.set_title('C  Decomposition', fontsize=10, loc='left',
                     fontweight='bold')
 
-    # Add bracket showing collapse
-    ax_c.annotate('', xy=(1, 1.90), xytext=(3, 1.90),
-                  arrowprops=dict(arrowstyle='<->', color='black', lw=0.8))
-    ax_c.text(2, 1.95, 'Collapse', ha='center', va='bottom', fontsize=7,
-              fontstyle='italic')
+    # Add value labels on bars
+    for bar, v in zip(bars, values):
+        ax_c.text(bar.get_x() + bar.get_width() / 2,
+                  bar.get_height() + 0.02,
+                  f'{v:.2f}', ha='center', va='bottom', fontsize=7)
 
-    # Add ratio annotations
-    ax_c.annotate('1.30x', xy=(0.5, 1.55), fontsize=7, ha='center',
-                  color='#333333')
-    ax_c.annotate('1.14x', xy=(3.5, 1.93), fontsize=7, ha='center',
-                  color='#333333')
+    # Add computed ratio annotations
+    seg_real_ratio = mean_seg / mean_real if mean_real > 0 else 0
+    shuf_m1_ratio = mean_shuf / mean_m1 if mean_m1 > 0 else 0
+    ax_c.annotate(f'{seg_real_ratio:.2f}x', xy=(0.5, max(mean_real, mean_seg) + 0.05),
+                  fontsize=7, ha='center', color='#333333')
+    ax_c.annotate(f'{shuf_m1_ratio:.2f}x', xy=(2.5, max(mean_m1, mean_shuf) + 0.05),
+                  fontsize=7, ha='center', color='#333333')
 
     plt.savefig(os.path.join(fig_dir, 'fig1_conceptual.png'))
     plt.savefig(os.path.join(fig_dir, 'fig1_conceptual.pdf'))
@@ -780,7 +824,8 @@ def generate_fig3(org_data, fold_data, fig_dir):
             box_data.append([0])
 
     bp = ax_b.boxplot(box_data, labels=fold_labels, patch_artist=True,
-                      widths=0.6, showfliers=False,
+                      widths=0.6, showfliers=True,
+                      flierprops=dict(marker='.', markersize=1, alpha=0.3),
                       medianprops=dict(color='black', linewidth=1),
                       whiskerprops=dict(linewidth=0.6),
                       capprops=dict(linewidth=0.6))

@@ -743,10 +743,8 @@ def process_chains(chain_list, W_interp, phi_sign, max_chains=None, skip_downloa
             n_skipped_parse += 1
             continue
 
-        # Basic sanity: reject extreme outliers
-        if not (0.02 < bps < 0.50):
-            n_skipped_parse += 1
-            continue
+        # Flag extreme outliers but include them in results
+        is_outlier = not (0.02 < bps < 0.50)
 
         # Secondary structure
         pct_h, pct_s, pct_c = classify_ss(phi_psi)
@@ -764,6 +762,7 @@ def process_chains(chain_list, W_interp, phi_sign, max_chains=None, skip_downloa
             'pct_helix': pct_h,
             'pct_sheet': pct_s,
             'pct_coil': pct_c,
+            'is_outlier': is_outlier,
         })
         n_success += 1
 
@@ -798,10 +797,11 @@ def analyze_results(results):
     lengths = np.array([r['L'] for r in results])
     resolutions = np.array([r['resolution'] for r in results
                             if r['resolution'] is not None])
+    outlier_flags = np.array([r.get('is_outlier', False) for r in results])
 
     analysis = {}
 
-    # ---- Summary statistics ----
+    # ---- Summary statistics (all proteins) ----
     analysis['n_chains'] = len(results)
     analysis['mean_bps'] = float(np.mean(bps_vals))
     analysis['std_bps'] = float(np.std(bps_vals, ddof=1))
@@ -810,8 +810,29 @@ def analyze_results(results):
     analysis['min_bps'] = float(np.min(bps_vals))
     analysis['max_bps'] = float(np.max(bps_vals))
 
+    # ---- Outlier analysis ----
+    n_outliers = int(np.sum(outlier_flags))
+    analysis['n_outliers'] = n_outliers
+    analysis['outlier_pct'] = n_outliers / len(results) * 100 if results else 0
+    if n_outliers > 0:
+        outlier_bps = bps_vals[outlier_flags]
+        analysis['outlier_mean_bps'] = float(np.mean(outlier_bps))
+        analysis['outlier_ids'] = [r['pdb_id'] for r, o in
+                                   zip(results, outlier_flags) if o]
+    # Stats without outliers for comparison
+    non_outlier = ~outlier_flags
+    if np.sum(non_outlier) > 0:
+        analysis['mean_bps_no_outliers'] = float(np.mean(bps_vals[non_outlier]))
+        analysis['cv_pct_no_outliers'] = float(
+            np.std(bps_vals[non_outlier], ddof=1) /
+            np.mean(bps_vals[non_outlier]) * 100)
+
     # ---- KS test vs AlphaFold ----
-    # Generate synthetic AF distribution from known mean/std for comparison
+    # Compare PDB BPS/L against a synthetic sample from the AlphaFold
+    # reference distribution. Note: uses normal approximation because the
+    # full per-protein AlphaFold BPS/L array is not available at report
+    # time. For a stronger test, replace with actual AlphaFold values via
+    # ks_2samp(bps_vals, alphafold_bps_array).
     if HAS_SCIPY_STATS:
         rng = np.random.default_rng(RNG_SEED)
         af_synthetic = rng.normal(AF_REFERENCE['mean_bps'],
@@ -820,6 +841,8 @@ def analyze_results(results):
         ks_stat, ks_p = ks_2samp(bps_vals, af_synthetic)
         analysis['ks_stat'] = float(ks_stat)
         analysis['ks_pvalue'] = float(ks_p)
+        analysis['ks_note'] = ("KS test uses normal approximation of AF "
+                               "distribution, not raw AF values.")
     else:
         analysis['ks_stat'] = None
         analysis['ks_pvalue'] = None

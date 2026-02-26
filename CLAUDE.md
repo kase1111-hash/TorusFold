@@ -54,7 +54,7 @@ TorusFold/
 
 ### The Superpotential W(φ,ψ)
 
-A fixed scalar field on the Ramachandran torus derived from the empirical probability density of backbone dihedral angles across all known protein structures. W = −ln(p + ε) where p is a von Mises mixture KDE of (φ,ψ) from PDB statistics, smoothed with σ=1.5, on a 360×360 grid with periodic boundary conditions.
+A fixed scalar field on the Ramachandran torus derived from the empirical probability density of backbone dihedral angles across all known protein structures. Primary superpotential: W = −√P(φ,ψ) (used in the main BPS pipeline, `bps_process.py` and `bps_validate_controls.py`). Alternative forms including W = −ln(P + ε) are tested for transform invariance (see W-robustness validation). The `bps/superpotential.py` module and several analysis scripts use −ln(P + ε) with ε = 1e-7. The absolute value of BPS/L depends on the W construction (gauge choice); what matters is the three-level decomposition: Real < Markov < Shuffled.
 
 W is **never trainable**. It is the landscape. Proteins navigate it.
 
@@ -130,16 +130,15 @@ Python 3.10+ required. No GPU needed for BPS/loop analysis. GPU needed only for 
 - W grid is 360×360 over [−π, π)² with periodic boundary conditions.
 - Lookup uses bilinear interpolation with periodic wrapping.
 - W is normalized so min = 0. Absolute values are arbitrary; only differences matter.
-- The density floor ε = 1e-8 prevents log(0) in unpopulated regions.
+- The density floor ε = 1e-7 prevents log(0) in unpopulated regions.
 - **Never modify W during analysis.** It is a fixed reference frame.
 
-**Basin assignment:**
-- α-helix: φ ∈ (−100°, −30°), ψ ∈ (−67°, −7°)
-- β-sheet: φ ∈ (−170°, −70°), ψ ∈ (90°, 180°) ∪ (−180°, −120°) — wraps around ±180°
-- ppII: φ ∈ (−100°, −50°), ψ ∈ (120°, 180°)
-- αL: φ ∈ (30°, 90°), ψ ∈ (10°, 70°)
+**Basin assignment (wide definition — used in all published analyses):**
+- α-helix: φ ∈ (−160°, 0°), ψ ∈ (−120°, 30°)
+- β-sheet: φ ∈ (−170°, −70°), ψ > 90° OR ψ < −120° — wraps around ±180°
 - Everything else: "other"
 - The β-sheet basin MUST merge the two ψ ranges (primary + wrapped). Failing to handle the ±180° wrap is a known bug source.
+- **Note:** `bps/superpotential.py` uses a narrower five-basin classification (α, β, ppII, αL, other) for detailed Ramachandran analysis. The wide two-basin definition above is used for all BPS/L and fold-class analyses. Results under the narrow definition (φ ∈ (−100°, −30°), ψ ∈ (−67°, −7°) for α) should be tested as a sensitivity control.
 
 **Chain extraction:**
 - ALWAYS extract a single chain (usually chain A). Multi-chain extraction was a confirmed bug in earlier versions (1AON/GroEL produced BPS 10× too high because BioPython walked all 14 subunits).

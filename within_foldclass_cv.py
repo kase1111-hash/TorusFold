@@ -474,34 +474,33 @@ def main():
                             f"{s['n_organisms']} organisms\n")
             f.write("\n")
 
-            # Verdict uses weighted average (proper for unequal class sizes)
-            if avg_within_weighted <= overall_cv * 1.5:
-                f.write("**Verdict: Conservation is genuine.** "
-                        "The protein-count-weighted within-class CV "
-                        f"({avg_within_weighted:.1f}%) is comparable to "
-                        f"the overall CV ({overall_cv:.1f}%), demonstrating "
-                        "that cross-organism conservation holds within "
-                        "individual fold classes and is not an artifact of "
-                        "consistent fold-class composition.\n\n")
+            # Report raw numbers — let the reader judge
+            ratio = avg_within_weighted / overall_cv if overall_cv > 0 else 0
+            f.write(f"**Within-class / overall CV ratio: "
+                    f"{ratio:.2f}x** "
+                    f"(weighted within-class: {avg_within_weighted:.1f}%, "
+                    f"overall: {overall_cv:.1f}%)\n\n")
+
+            if ratio <= 1.2:
+                f.write("Within-class CVs are close to the overall CV, "
+                        "consistent with genuine conservation within "
+                        "individual fold classes.\n\n")
+            elif ratio <= 2.0:
+                f.write("Within-class CVs are moderately higher than "
+                        "the overall CV. Some of the overall conservation "
+                        "may reflect consistent fold-class composition.\n\n")
             else:
-                f.write("**Verdict: Compositional contribution detected.** "
-                        "The protein-count-weighted within-class CV "
-                        f"({avg_within_weighted:.1f}%) exceeds the overall "
-                        f"CV ({overall_cv:.1f}%) by more than 1.5×, "
-                        "indicating that some of the overall conservation "
-                        "reflects consistent fold-class composition across "
-                        "organisms.\n\n")
+                f.write("Within-class CVs substantially exceed the overall "
+                        "CV, indicating that conservation is partly driven "
+                        "by compositional averaging.\n\n")
 
             # Note on unweighted vs weighted
             if abs(avg_within_unweighted - avg_within_weighted) > 0.5:
-                f.write("*Note: The unweighted average "
+                f.write(f"*Note: The unweighted average "
                         f"({avg_within_unweighted:.1f}%) differs from the "
                         f"weighted average ({avg_within_weighted:.1f}%) "
-                        "because small fold classes (α+β, all-β) have "
-                        "higher CVs driven by small per-organism sample "
-                        "sizes, not biological variation. The weighted "
-                        "average correctly reflects the dataset's "
-                        "composition.*\n\n")
+                        "because small fold classes have fewer per-organism "
+                        "samples, inflating their CVs.*\n\n")
 
         # Fold-class composition by organism
         f.write("## Fold-Class Composition by Organism\n\n")
@@ -582,6 +581,68 @@ def main():
 
     print(f"\n  Report: {report_path}")
     print("  Done.")
+
+
+def plddt_sensitivity(data_dir, W_grid, grid_size, sample_per_org=0):
+    """Run BPS/L analysis at multiple pLDDT thresholds.
+
+    Reports N proteins, mean BPS/L, CV, and Seg/Real ratio at each
+    threshold to demonstrate that conservation is not an artifact of
+    aggressive quality filtering.
+
+    Returns list of dicts with threshold, n, mean, cv.
+    """
+    from generate_figures import (extract_angles as _extract_angles,
+                                  compute_bps_l, null_segment_preserving,
+                                  discover_files, classify_fold)
+    import warnings
+    warnings.filterwarnings('ignore')
+
+    organisms = discover_files(data_dir)
+    thresholds = [70, 80, 85, 90]
+    results = []
+
+    for plddt_thresh in thresholds:
+        all_bpsl = []
+        rng = np.random.default_rng(42)
+        MAX_FILE_SIZE = 5 * 1024 * 1024
+
+        for org_name, files in sorted(organisms.items()):
+            sel = files
+            if sample_per_org > 0 and len(files) > sample_per_org:
+                idx = rng.choice(len(files), sample_per_org, replace=False)
+                sel = [files[i] for i in idx]
+
+            for filepath in sel:
+                try:
+                    if os.path.getsize(filepath) > MAX_FILE_SIZE:
+                        continue
+                    pp, ss = _extract_angles(filepath, plddt_min=float(plddt_thresh))
+                    if len(pp) < 50:
+                        continue
+                    phi = np.array([p[0] for p in pp])
+                    psi = np.array([p[1] for p in pp])
+                    bpsl, _ = compute_bps_l(phi, psi, W_grid, grid_size)
+                    all_bpsl.append(bpsl)
+                except Exception:
+                    continue
+
+        if all_bpsl:
+            arr = np.array(all_bpsl)
+            mean_bps = float(np.mean(arr))
+            std_bps = float(np.std(arr, ddof=1))
+            cv = std_bps / mean_bps * 100 if mean_bps > 0 else 0
+            results.append({
+                'threshold': plddt_thresh,
+                'n_proteins': len(arr),
+                'mean_bps': mean_bps,
+                'std_bps': std_bps,
+                'cv_pct': cv,
+            })
+            print(f"  pLDDT >= {plddt_thresh}: N={len(arr)}, "
+                  f"BPS/L={mean_bps:.3f} ± {std_bps:.3f}, CV={cv:.1f}%")
+
+    return results
 
 
 if __name__ == "__main__":

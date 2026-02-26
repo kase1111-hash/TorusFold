@@ -67,7 +67,7 @@ VM_COMPONENTS = [
     {'weight': 0.06, 'mu_phi':   0,  'mu_psi':   0,  'kappa_phi':  0.01,'kappa_psi':  0.01,'rho':  0.0},
 ]
 
-BASIN_NAMES = ['alpha', 'beta', 'ppII', 'alphaL', 'other']
+BASIN_NAMES = ['alpha', 'beta', 'other']
 
 
 # ============================================================
@@ -332,6 +332,9 @@ def build_superpotential_variant(kappa_scale=1.0, grid_n=360, epsilon=None):
     else:
         p = np.maximum(p, np.max(p) * 1e-6)
 
+    # W = -sqrt(P): matches the primary pipeline (bps_process.py).
+    # Alternative: W = -ln(P + eps) used in bps/superpotential.py.
+    # Three-level decomposition is transform-invariant across W choices.
     W = -np.sqrt(p)
     W = gaussian_filter(W, sigma=1.5)
     return RegularGridInterpolator(
@@ -346,21 +349,19 @@ def build_superpotential_variant(kappa_scale=1.0, grid_n=360, epsilon=None):
 
 def classify_basin(phi_deg, psi_deg):
     """Classify (phi, psi) in degrees into a Ramachandran basin.
-    Returns index: 0=alpha, 1=beta, 2=ppII, 3=alphaL, 4=other."""
-    # Alpha-helix
-    if -100 < phi_deg < -30 and -67 < psi_deg < -7:
+    Returns index: 0=alpha, 1=beta, 2=other.
+
+    Uses the wide basin definition consistent with all other analysis
+    scripts (generate_figures.py, alphafold_pipeline.py, etc.).
+    """
+    # Alpha-helix (wide definition)
+    if -160 < phi_deg < 0 and -120 < psi_deg < 30:
         return 0
-    # Beta-sheet
+    # Beta-sheet (handles +/-180 wrap)
     if -170 < phi_deg < -70 and (psi_deg > 90 or psi_deg < -120):
         return 1
-    # ppII (polyproline II)
-    if -100 < phi_deg < -40 and 110 < psi_deg < 180:
-        return 2
-    # Left-handed alpha
-    if 30 < phi_deg < 90 and 0 < psi_deg < 60:
-        return 3
     # Other
-    return 4
+    return 2
 
 
 # ============================================================
@@ -730,15 +731,18 @@ def test_fold_class_conditioning(conn):
                          f"  {fc}: N={n_proteins}, orgs={n_organisms}, "
                          f"mean={grand_mean:.4f}")
 
-    # Verdict: check if Mixed alpha/beta CV ≤ 3%
-    mixed_row = next((r for r in results_table if r['fold_class'] == 'Mixed alpha/beta'), None)
-    if mixed_row and mixed_row['cv_pct'] is not None:
-        if mixed_row['cv_pct'] <= 3.0:
-            verdict = 'PASS — geometric universality'
-        elif mixed_row['cv_pct'] <= 5.0:
-            verdict = 'MARGINAL'
+    # Verdict: check ALL fold classes with sufficient data, not just one
+    cv_results = [r for r in results_table
+                  if r['cv_pct'] is not None and r['n_proteins'] >= 20]
+    if cv_results:
+        max_cv = max(r['cv_pct'] for r in cv_results)
+        mean_cv = np.mean([r['cv_pct'] for r in cv_results])
+        if max_cv <= 5.0:
+            verdict = 'PASS — geometric universality (all classes CV <= 5%)'
+        elif mean_cv <= 5.0:
+            verdict = f'MARGINAL — mean CV = {mean_cv:.1f}%, max CV = {max_cv:.1f}%'
         else:
-            verdict = 'FAIL — ecological (mixture) effect only'
+            verdict = f'FAIL — mean CV = {mean_cv:.1f}% across fold classes'
     else:
         verdict = 'INCONCLUSIVE'
 
@@ -911,9 +915,10 @@ def test_transition_matrix(sample, W_interp):
     logging.info("=" * 60)
 
     # Accumulate basin classifications and W values across all proteins
-    transition_counts = np.zeros((5, 5), dtype=np.int64)
-    basin_W_sums = np.zeros(5)
-    basin_W_counts = np.zeros(5, dtype=np.int64)
+    n_basins = len(BASIN_NAMES)  # 3: alpha, beta, other
+    transition_counts = np.zeros((n_basins, n_basins), dtype=np.int64)
+    basin_W_sums = np.zeros(n_basins)
+    basin_W_counts = np.zeros(n_basins, dtype=np.int64)
     n_processed = 0
 
     for entry in sample:
@@ -938,7 +943,7 @@ def test_transition_matrix(sample, W_interp):
                           for j in range(len(valid))])
 
         # Accumulate W values per basin
-        for b in range(5):
+        for b in range(n_basins):
             mask = basins == b
             basin_W_sums[b] += np.sum(W_vals[mask])
             basin_W_counts[b] += int(np.sum(mask))
@@ -954,8 +959,8 @@ def test_transition_matrix(sample, W_interp):
         return {'status': 'SKIPPED', 'reason': 'Insufficient data'}
 
     # Mean W per basin
-    W_bar = np.zeros(5)
-    for b in range(5):
+    W_bar = np.zeros(n_basins)
+    for b in range(n_basins):
         if basin_W_counts[b] > 0:
             W_bar[b] = basin_W_sums[b] / basin_W_counts[b]
 
@@ -968,8 +973,8 @@ def test_transition_matrix(sample, W_interp):
 
     # Predicted BPS/L = Σ_ij T[i→j] × |W̄_i - W̄_j|
     predicted_bps = 0.0
-    for i in range(5):
-        for j in range(5):
+    for i in range(n_basins):
+        for j in range(n_basins):
             predicted_bps += T_prob[i, j] * abs(W_bar[i] - W_bar[j])
 
     # Observed BPS/L (from the sample)
@@ -992,7 +997,7 @@ def test_transition_matrix(sample, W_interp):
     # Basin occupancy
     basin_occupancy = {}
     total_residues = int(np.sum(basin_W_counts))
-    for b in range(5):
+    for b in range(n_basins):
         basin_occupancy[BASIN_NAMES[b]] = {
             'count': int(basin_W_counts[b]),
             'pct': float(basin_W_counts[b] / total_residues * 100) if total_residues > 0 else 0,
@@ -1028,7 +1033,7 @@ def test_transition_matrix(sample, W_interp):
         'transition_counts': transition_counts.tolist(),
         'total_transitions': int(total_transitions),
         'basin_occupancy': basin_occupancy,
-        'W_bar': {BASIN_NAMES[b]: float(W_bar[b]) for b in range(5)},
+        'W_bar': {BASIN_NAMES[b]: float(W_bar[b]) for b in range(n_basins)},
     }
 
 
@@ -1061,9 +1066,10 @@ def test_markov_simulation(sample, W_interp):
     real_bps_vals = []
     real_organisms = []
     real_lengths = []
-    transition_counts = np.zeros((5, 5), dtype=np.int64)
-    basin_occupancy = np.zeros(5, dtype=np.int64)
-    basin_angles = {b: [] for b in range(5)}  # basin -> list of (phi, psi)
+    n_basins = len(BASIN_NAMES)  # 3: alpha, beta, other
+    transition_counts = np.zeros((n_basins, n_basins), dtype=np.int64)
+    basin_occupancy = np.zeros(n_basins, dtype=np.int64)
+    basin_angles = {b: [] for b in range(n_basins)}  # basin -> list of (phi, psi)
     n_processed = 0
 
     for entry in sample:
@@ -1118,7 +1124,7 @@ def test_markov_simulation(sample, W_interp):
     stationary = basin_occupancy / total_residues
 
     logging.info(f"  Total residues classified: {total_residues:,}")
-    for b in range(5):
+    for b in range(n_basins):
         logging.info(f"    {BASIN_NAMES[b]}: {basin_occupancy[b]:,} "
                      f"({stationary[b]*100:.1f}%), "
                      f"{len(basin_angles[b])} angle samples")
@@ -1126,21 +1132,16 @@ def test_markov_simulation(sample, W_interp):
     # ------------------------------------------------------------------
     # Step 2: Verify per-basin angle distributions are non-empty
     # ------------------------------------------------------------------
-    for b in range(5):
+    placeholder_angles = {0: (-1.1, -0.44), 1: (-2.1, 2.36), 2: (0.0, 0.0)}
+    for b in range(n_basins):
         if len(basin_angles[b]) == 0:
-            # Fill with a single representative angle to avoid crashes
-            # (this basin is essentially unpopulated)
-            if b == 0:    basin_angles[b] = [(-1.1, -0.44)]   # alpha
-            elif b == 1:  basin_angles[b] = [(-2.1, 2.36)]    # beta
-            elif b == 2:  basin_angles[b] = [(-1.22, 2.53)]   # ppII
-            elif b == 3:  basin_angles[b] = [(1.05, 0.52)]    # alphaL
-            else:         basin_angles[b] = [(0.0, 0.0)]      # other
+            basin_angles[b] = [placeholder_angles.get(b, (0.0, 0.0))]
             logging.warning(f"    Basin {BASIN_NAMES[b]} had no samples, "
                             f"using placeholder angle")
 
     # Convert to arrays for fast random indexing
     basin_angle_arrays = {}
-    for b in range(5):
+    for b in range(n_basins):
         basin_angle_arrays[b] = np.array(basin_angles[b])
 
     # ------------------------------------------------------------------
