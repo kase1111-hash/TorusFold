@@ -262,6 +262,17 @@ class Superpotential:
         self.grid = grid
         self.w_min = float(np.min(grid))
         self.w_max = float(np.max(grid))
+        # Sanity check: W = -sqrt(P) with properly normalized density should
+        # have min around -1.3 (alpha helix basin).  A min above -0.5
+        # indicates the density was histogram-normalized (sum=1) instead of
+        # density-normalized (integral=1), compressing W by ~20-50×.
+        if self.w_min > -0.5:
+            warnings.warn(
+                f"W grid min = {self.w_min:.4f} is suspiciously close to zero. "
+                f"Expected W min ≈ -1.3 for properly density-normalized P. "
+                f"Check that the density is normalized so its integral "
+                f"(sum * dphi * dpsi) = 1, not just its sum."
+            )
 
     def __call__(self, phi_rad: float, psi_rad: float) -> float:
         """Look up W at (phi, psi) in radians. Nearest-neighbor grid lookup."""
@@ -302,10 +313,16 @@ class Superpotential:
         for i, j in zip(gi, gj):
             grid[i, j] += 1
 
-        # Normalize to density
+        # Normalize to proper probability density (integral over torus = 1).
+        # Must divide by (total * dphi * dpsi), not just total, so the grid
+        # represents density per radian^2 — matching bps/superpotential.py.
+        # Dividing by total alone yields a histogram (sum = 1) whose peak
+        # values are ~3283× too small, compressing W by ~√3283 ≈ 57×.
         total = grid.sum()
         if total > 0:
-            grid /= total
+            dphi = 2 * np.pi / 360
+            dpsi = 2 * np.pi / 360
+            grid /= total * dphi * dpsi
 
         grid = np.maximum(grid, np.max(grid) * 1e-6 if grid.max() > 0 else 1e-10)
         W = -np.sqrt(grid)
