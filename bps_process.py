@@ -1014,7 +1014,8 @@ def run_validation(W_interp, conn):
     for uid, pdb, name, ln_kf, co, exp_L in PLAXCO_PROTEINS:
         cif_path = None
         for v in (4, 3, 2, 1):
-            for search_dir in [CACHE_DIR / "_selftest", CACHE_DIR / "_validation",
+            for search_dir in [CACHE_DIR / "plaxco23",
+                               CACHE_DIR / "_selftest", CACHE_DIR / "_validation",
                                CACHE_DIR / "ecoli", CACHE_DIR / "human",
                                CACHE_DIR / "yeast", CACHE_DIR]:
                 p = search_dir / f"AF-{uid}-F1-model_v{v}.cif"
