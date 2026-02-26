@@ -10,6 +10,8 @@ Run this first (or in the background) while processing already-cached data.
 Usage:
   python bps_download.py --mode all          # download all 34 proteomes
   python bps_download.py --mode organism --organism human
+  python bps_download.py --mode plaxco23     # download Plaxco 23 validation set
+  python bps_download.py --mode uniprot --ids P00648,P06654  # download by UniProt ID
   python bps_download.py --mode status       # show download progress
   python bps_download.py --mode retry        # retry failed downloads
 
@@ -479,6 +481,93 @@ def retry_failures():
 
 
 # ============================================================
+# DOWNLOAD BY UNIPROT ID — individual CIF files
+# ============================================================
+
+# Plaxco 23 validation set: proteins from diverse organisms, many outside
+# the 34 proteomes.  (uniprot_id, pdb_id, name)
+PLAXCO_23 = [
+    ("P00648", "1SRL", "Sarcin"),
+    ("P56849", "1APS", "AcP"),
+    ("P0A6X3", "1HKS", "Hpr"),
+    ("P00698", "1HEL", "HEWL"),
+    ("P02489", "3HMZ", "alpha-A crystallin"),
+    ("P00636", "2RN2", "Barnase"),
+    ("P00720", "2LZM", "T4 Lysozyme"),
+    ("P23928", "1MJC", "alphaB crystallin"),
+    ("P0AEH5", "2CI2", "CI2"),
+    ("P06654", "1UBQ", "Ubiquitin"),
+    ("P01112", "5P21", "p21 Ras"),
+    ("P62937", "2CYP", "CypA"),
+    ("P23229", "1TIT", "Titin I27"),
+    ("P0ABP8", "1DPS", "Dps"),
+    ("P04637", "2OCJ", "p53"),
+    ("P05067", "1AAP", "APPI"),
+    ("P00974", "5PTI", "BPTI"),
+    ("P01133", "1EGF", "EGF"),
+    ("P62993", "1SHG", "SH3"),
+    ("P00178", "1YCC", "Cyt c"),
+    ("P0CY58", "1AON", "GroEL"),
+    ("P00925", "3ENL", "Enolase"),
+    ("P00517", "1CDK", "PKA"),
+]
+
+
+def download_uniprot_ids(uniprot_ids, target_dir, labels=None):
+    """Download AlphaFold CIF files for a list of UniProt IDs.
+
+    Args:
+        uniprot_ids: list of UniProt accessions (e.g. ["P00648", "P06654"])
+        target_dir: Path to download into (created if needed)
+        labels: optional dict {uid: label} for display
+
+    Returns:
+        (n_ok, n_skip, n_fail)
+    """
+    target_dir = Path(target_dir)
+    target_dir.mkdir(parents=True, exist_ok=True)
+
+    if labels is None:
+        labels = {uid: uid for uid in uniprot_ids}
+
+    n_ok, n_skip, n_fail = 0, 0, 0
+    for uid in uniprot_ids:
+        label = labels.get(uid, uid)
+
+        if is_cached(uid, target_dir):
+            logging.info(f"  {uid} ({label}): cached")
+            n_skip += 1
+            continue
+
+        path, version, err = download_one(uid, target_dir)
+        if path:
+            logging.info(f"  {uid} ({label}): OK (v{version})")
+            n_ok += 1
+        elif err == '404':
+            logging.warning(f"  {uid} ({label}): NOT FOUND (404)")
+            n_fail += 1
+        else:
+            logging.warning(f"  {uid} ({label}): FAILED ({err})")
+            n_fail += 1
+
+    logging.info(f"\n  Summary: {n_ok} downloaded, {n_skip} cached, {n_fail} failed")
+    return n_ok, n_skip, n_fail
+
+
+def download_plaxco23():
+    """Download all 23 Plaxco validation proteins into alphafold_cache/plaxco23/."""
+    target = CACHE_DIR / "plaxco23"
+    logging.info("=" * 70)
+    logging.info("DOWNLOADING PLAXCO 23 VALIDATION SET")
+    logging.info(f"  Target: {target}")
+    logging.info("=" * 70)
+
+    ids = [uid for uid, _, _ in PLAXCO_23]
+    labels = {uid: f"{pdb}/{name}" for uid, pdb, name in PLAXCO_23}
+    return download_uniprot_ids(ids, target, labels)
+
+
+# ============================================================
 # WATCH MODE — continuous download loop
 # ============================================================
 
@@ -533,10 +622,15 @@ def watch_loop(poll_interval, max_proteins=None):
 
 def main():
     parser = argparse.ArgumentParser(description="BPS Downloader — fetch AlphaFold CIFs")
-    parser.add_argument("--mode", choices=["all", "organism", "status", "retry", "watch"],
+    parser.add_argument("--mode", choices=["all", "organism", "status", "retry", "watch",
+                                           "plaxco23", "uniprot"],
                         default="status")
     parser.add_argument("--organism", default="ecoli",
                         choices=list(PROTEOMES.keys()))
+    parser.add_argument("--ids", default=None,
+                        help="Comma-separated UniProt IDs (for --mode uniprot)")
+    parser.add_argument("--target-dir", default=None,
+                        help="Target directory for --mode uniprot (default: alphafold_cache/custom/)")
     parser.add_argument("--max", type=int, default=None)
     parser.add_argument("--poll", type=int, default=60,
                         help="Poll interval in seconds for watch mode (default: 60)")
@@ -549,6 +643,16 @@ def main():
 
     elif args.mode == "organism":
         download_organism(args.organism, args.max)
+
+    elif args.mode == "plaxco23":
+        download_plaxco23()
+
+    elif args.mode == "uniprot":
+        if not args.ids:
+            parser.error("--ids required for --mode uniprot")
+        ids = [x.strip() for x in args.ids.split(",") if x.strip()]
+        target = Path(args.target_dir) if args.target_dir else CACHE_DIR / "custom"
+        download_uniprot_ids(ids, target)
 
     elif args.mode == "retry":
         retry_failures()

@@ -75,7 +75,8 @@ def download_plaxco_proteins():
     for uid, pdb, name, _, _, _ in PLAXCO_PROTEINS:
         # Check if already cached anywhere
         found = False
-        for search_dir in [VALIDATION_DIR, CACHE_DIR / "_selftest",
+        for search_dir in [CACHE_DIR / "plaxco23", VALIDATION_DIR,
+                           CACHE_DIR / "_selftest",
                            CACHE_DIR / "ecoli", CACHE_DIR / "human",
                            CACHE_DIR / "yeast", CACHE_DIR]:
             for v in (4, 3, 2, 1):
@@ -124,7 +125,8 @@ def download_plaxco_proteins():
 
 def find_cif(uid):
     """Find cached CIF for a UniProt ID, searching multiple locations."""
-    for search_dir in [VALIDATION_DIR, CACHE_DIR / "_selftest",
+    for search_dir in [CACHE_DIR / "plaxco23", VALIDATION_DIR,
+                       CACHE_DIR / "_selftest",
                        CACHE_DIR / "ecoli", CACHE_DIR / "human",
                        CACHE_DIR / "yeast", CACHE_DIR]:
         for v in (4, 3, 2, 1):
