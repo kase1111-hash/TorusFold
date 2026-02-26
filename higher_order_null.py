@@ -152,13 +152,21 @@ class Superpotential:
         data = np.load(filepath)
         return Superpotential(data['grid'])
 
+    @staticmethod
+    def from_von_mises(grid_size=360):
+        """Build from the shared von Mises -sqrt(P) construction."""
+        from bps.superpotential import build_superpotential as _build
+        W_grid, _, _ = _build(grid_size)
+        return Superpotential(W_grid)
+
 
 def compute_bps_l(phi_arr, psi_arr, W):
-    """BPS/L from arrays of phi, psi."""
+    """BPS/L from arrays of phi, psi. Normalizes by L."""
     if len(phi_arr) < 2:
         return 0.0
     w_vals = W.lookup_array(phi_arr, psi_arr)
-    return float(np.mean(np.abs(np.diff(w_vals))))
+    L = len(phi_arr)
+    return float(np.sum(np.abs(np.diff(w_vals)))) / L
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -455,14 +463,9 @@ def main():
     print("  TorusFold: Higher-Order Null Model Analysis")
     print("=" * 60)
 
-    # Load W
-    if not os.path.exists(args.w_cache):
-        print(f"ERROR: Superpotential not found at {args.w_cache}")
-        print("Run the main pipeline first to generate it.")
-        sys.exit(1)
-
-    W = Superpotential.load(args.w_cache)
-    print(f"  Loaded W from {args.w_cache}")
+    # Build W from shared von Mises construction
+    W = Superpotential.from_von_mises()
+    print(f"  Built W: 360x360 (von Mises -sqrt(P))")
 
     # Discover files
     files = discover_cif_files(args.data, args.sample)

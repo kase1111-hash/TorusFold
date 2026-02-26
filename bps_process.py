@@ -267,35 +267,13 @@ PLAXCO_PROTEINS = [
 # ============================================================
 
 def build_superpotential():
-    COMPONENTS = [
-        {'weight': 0.35, 'mu_phi': -63, 'mu_psi': -43, 'kappa_phi': 12.0, 'kappa_psi': 10.0, 'rho': 2.0},
-        {'weight': 0.05, 'mu_phi': -60, 'mu_psi': -27, 'kappa_phi': 8.0,  'kappa_psi': 6.0,  'rho': 1.0},
-        {'weight': 0.25, 'mu_phi': -120,'mu_psi': 135, 'kappa_phi': 4.0,  'kappa_psi': 3.5,  'rho': -1.5},
-        {'weight': 0.05, 'mu_phi': -140,'mu_psi': 155, 'kappa_phi': 5.0,  'kappa_psi': 4.0,  'rho': -1.0},
-        {'weight': 0.12, 'mu_phi': -75, 'mu_psi': 150, 'kappa_phi': 8.0,  'kappa_psi': 5.0,  'rho': 0.5},
-        {'weight': 0.05, 'mu_phi': -95, 'mu_psi': 150, 'kappa_phi': 3.0,  'kappa_psi': 4.0,  'rho': 0.0},
-        {'weight': 0.03, 'mu_phi': 57,  'mu_psi': 40,  'kappa_phi': 6.0,  'kappa_psi': 6.0,  'rho': 1.5},
-        {'weight': 0.03, 'mu_phi': 60,  'mu_psi': -130,'kappa_phi': 5.0,  'kappa_psi': 4.0,  'rho': 0.0},
-        {'weight': 0.01, 'mu_phi': 75,  'mu_psi': -65, 'kappa_phi': 5.0,  'kappa_psi': 5.0,  'rho': 0.0},
-        {'weight': 0.06, 'mu_phi': 0,   'mu_psi': 0,   'kappa_phi': 0.01, 'kappa_psi': 0.01, 'rho': 0.0},
-    ]
-    N = 360
-    phi_grid = np.linspace(-np.pi, np.pi, N, endpoint=False)
-    psi_grid = np.linspace(-np.pi, np.pi, N, endpoint=False)
-    PHI, PSI = np.meshgrid(phi_grid, psi_grid)
-    p = np.zeros_like(PHI)
-    for c in COMPONENTS:
-        mu_p, mu_s = np.radians(c['mu_phi']), np.radians(c['mu_psi'])
-        dp, ds = PHI - mu_p, PSI - mu_s
-        p += c['weight'] * np.exp(c['kappa_phi']*np.cos(dp) + c['kappa_psi']*np.cos(ds) + c['rho']*np.sin(dp)*np.sin(ds))
-    p /= np.sum(p) * (phi_grid[1]-phi_grid[0]) * (psi_grid[1]-psi_grid[0])
-    p = np.maximum(p, np.max(p) * 1e-6)
-    # W = -sqrt(P): primary superpotential form (compressed dynamic range).
-    # Alternative: W = -ln(P + eps) used in bps/superpotential.py and analysis scripts.
-    # Three-level decomposition is transform-invariant across W choices.
-    W = -np.sqrt(p)
-    W = gaussian_filter(W, sigma=1.5)
-    return RegularGridInterpolator((psi_grid, phi_grid), W, method='linear', bounds_error=False, fill_value=None)
+    """Build W = -sqrt(P) interpolator from the shared von Mises mixture.
+
+    Returns a RegularGridInterpolator that takes np.column_stack([psis, phis]).
+    The W construction is defined once in bps/superpotential.py.
+    """
+    from bps.superpotential import build_interpolator
+    return build_interpolator()
 
 
 # ============================================================

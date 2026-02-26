@@ -197,17 +197,14 @@ def classify_fold(ss_seq, alpha_thresh=0.15, beta_thresh=0.15):
 
 
 def compute_bps_l(phi_arr, psi_arr, W_grid, grid_size):
-    """BPS/L from arrays of phi, psi in radians."""
+    """BPS/L from arrays of phi, psi in radians. Normalizes by L."""
     if len(phi_arr) < 2:
         return 0.0, np.array([])
-    scale = grid_size / 360.0
-    phi_d = np.degrees(phi_arr)
-    psi_d = np.degrees(psi_arr)
-    gi = (np.round((phi_d + 180) * scale).astype(int)) % grid_size
-    gj = (np.round((psi_d + 180) * scale).astype(int)) % grid_size
-    w = W_grid[gi, gj]
+    from bps.superpotential import lookup_W_grid
+    w = lookup_W_grid(W_grid, grid_size, phi_arr, psi_arr)
     dw = np.abs(np.diff(w))
-    return float(np.mean(dw)), w
+    L = len(phi_arr)
+    return float(np.sum(dw)) / L, w
 
 
 def discover_files(data_dir):
@@ -243,71 +240,16 @@ def domain_of(org):
 # W CONSTRUCTION (fallback if .npz not found)
 # ═══════════════════════════════════════════════════════════════════
 
-def build_W_from_data(data_dir, grid_size=360, max_proteins=2000,
-                      save_path=None):
+def build_W_from_data(data_dir=None, grid_size=360, max_proteins=None, save_path=None):
+    """Build W = -sqrt(P) from the shared von Mises mixture.
+
+    Parameters are accepted for backward compatibility but ignored —
+    W is always the canonical von Mises construction.
     """
-    Build superpotential W = -ln(P + eps) from observed torsion angles.
-    Used as fallback when superpotential_W.npz is not found.
-    """
-    print("  Building superpotential W from data (this takes a few minutes)...")
-
-    organisms = discover_files(data_dir)
-    histogram = np.zeros((grid_size, grid_size), dtype=np.float64)
-    n_angles = 0
-    n_proteins = 0
-    MAX_FILE_SIZE = 5 * 1024 * 1024
-
-    rng = np.random.default_rng(42)
-
-    # Collect angles from a sample of proteins across organisms
-    for org_name, files in sorted(organisms.items()):
-        per_org = max(50, max_proteins // max(len(organisms), 1))
-        if len(files) > per_org:
-            idx = rng.choice(len(files), per_org, replace=False)
-            files_sel = [files[i] for i in idx]
-        else:
-            files_sel = files
-
-        for filepath in files_sel:
-            try:
-                if os.path.getsize(filepath) > MAX_FILE_SIZE:
-                    continue
-                pp, ss = extract_angles(filepath)
-                if len(pp) < 20:
-                    continue
-
-                for phi, psi in pp:
-                    phi_d = math.degrees(phi)
-                    psi_d = math.degrees(psi)
-                    gi = int(round((phi_d + 180) * grid_size / 360.0)) % grid_size
-                    gj = int(round((psi_d + 180) * grid_size / 360.0)) % grid_size
-                    histogram[gi, gj] += 1
-                    n_angles += 1
-
-                n_proteins += 1
-                if n_proteins >= max_proteins:
-                    break
-            except Exception:
-                continue
-        if n_proteins >= max_proteins:
-            break
-
-    print(f"    Collected {n_angles} angles from {n_proteins} proteins")
-
-    # Normalize to probability
-    P = histogram / histogram.sum()
-
-    # W = -ln(P + eps)
-    eps = 1e-7
-    W_grid = -np.log(P + eps)
-
+    from bps.superpotential import build_superpotential as _build
+    W_grid, phi_grid, psi_grid = _build(grid_size)
     if save_path:
         np.savez(save_path, grid=W_grid)
-        print(f"    Saved W to {save_path}")
-
-    print(f"    W grid: {grid_size}x{grid_size}, "
-          f"range [{W_grid.min():.2f}, {W_grid.max():.2f}]")
-
     return W_grid
 
 
@@ -990,41 +932,9 @@ def main():
     fig_dir = os.path.join(args.output, "figures")
     os.makedirs(fig_dir, exist_ok=True)
 
-    # Load W (or build from data if not found)
-    w_path = args.w_path or os.path.join(args.output, "superpotential_W.npz")
-    W_grid = None
-
-    if os.path.exists(w_path):
-        data = np.load(w_path)
-        W_grid = data['grid']
-        grid_size = W_grid.shape[0]
-        print(f"  Loaded W: {grid_size}x{grid_size} from {w_path}")
-    else:
-        print(f"  W not found at {w_path}")
-        # Search common locations
-        search_paths = [
-            os.path.join(args.data, '..', 'results', 'superpotential_W.npz'),
-            os.path.join(args.data, '..', 'superpotential_W.npz'),
-            'superpotential_W.npz',
-            os.path.join('..', 'results', 'superpotential_W.npz'),
-        ]
-        for sp in search_paths:
-            sp = os.path.normpath(sp)
-            if os.path.exists(sp):
-                print(f"  Found W at {sp}")
-                data = np.load(sp)
-                W_grid = data['grid']
-                grid_size = W_grid.shape[0]
-                print(f"  Loaded W: {grid_size}x{grid_size}")
-                break
-
-        if W_grid is None:
-            print("  Building W from data (first run only)...")
-            os.makedirs(args.output, exist_ok=True)
-            W_grid = build_W_from_data(args.data, grid_size=360,
-                                       max_proteins=2000,
-                                       save_path=w_path)
-            grid_size = W_grid.shape[0]
+    # Build W from the canonical von Mises mixture (no caching needed)
+    W_grid = build_W_from_data(grid_size=360)
+    grid_size = W_grid.shape[0]
 
     # Discover files
     organisms = discover_files(args.data)

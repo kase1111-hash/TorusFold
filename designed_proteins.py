@@ -256,15 +256,13 @@ def classify_fold(ss_seq, alpha_thresh=0.15, beta_thresh=0.15):
 
 
 def compute_bps_l(phi_arr, psi_arr, W_grid, grid_size):
+    """BPS/L from arrays of phi, psi in radians. Normalizes by L."""
     if len(phi_arr) < 2:
         return 0.0
-    scale = grid_size / 360.0
-    phi_d = np.degrees(phi_arr)
-    psi_d = np.degrees(psi_arr)
-    gi = (np.round((phi_d + 180) * scale).astype(int)) % grid_size
-    gj = (np.round((psi_d + 180) * scale).astype(int)) % grid_size
-    w = W_grid[gi, gj]
-    return float(np.mean(np.abs(np.diff(w))))
+    from bps.superpotential import lookup_W_grid
+    w = lookup_W_grid(W_grid, grid_size, phi_arr, psi_arr)
+    L = len(phi_arr)
+    return float(np.sum(np.abs(np.diff(w)))) / L
 
 
 def null_shuffled(phi_psi, rng):
@@ -342,14 +340,11 @@ def main():
         print("  Analyzing designed protein BPS/L")
         print("=" * 60)
 
-        # Load W
-        w_path = os.path.join(args.output, "superpotential_W.npz")
-        if not os.path.exists(w_path):
-            print(f"ERROR: W not found at {w_path}")
-            sys.exit(1)
-        data = np.load(w_path)
-        W_grid = data['grid']
+        # Build W from shared von Mises construction
+        from bps.superpotential import build_superpotential as _build_W
+        W_grid, _, _ = _build_W(360)
         grid_size = W_grid.shape[0]
+        print(f"  Built W: {grid_size}x{grid_size} (von Mises -sqrt(P))")
 
         # Process all CIF files
         cif_files = sorted(Path(data_dir).glob("*.cif"))

@@ -286,14 +286,20 @@ class Superpotential:
         return self.grid[gi, gj]
 
     @staticmethod
-    def from_angles(phi_psi_pairs: np.ndarray, smooth_sigma: float = 0.0,
-                    epsilon: float = 1e-7) -> 'Superpotential':
-        """Build W from observed (phi, psi) pairs.
+    def from_von_mises(grid_size: int = 360) -> 'Superpotential':
+        """Build from the shared von Mises -sqrt(P) construction."""
+        from bps.superpotential import build_superpotential as _build
+        W_grid, _, _ = _build(grid_size)
+        return Superpotential(W_grid)
+
+    @staticmethod
+    def from_angles(phi_psi_pairs: np.ndarray, smooth_sigma: float = 1.5,
+                    ) -> 'Superpotential':
+        """Build W = -sqrt(P) from observed (phi, psi) pairs.
 
         Args:
             phi_psi_pairs: Nx2 array of (phi, psi) in radians
-            smooth_sigma: Gaussian smoothing in grid points (0 = no smoothing)
-            epsilon: floor for log to prevent divergence
+            smooth_sigma: Gaussian smoothing in grid points (default 1.5)
         """
         grid = np.zeros((360, 360), dtype=np.float64)
 
@@ -311,12 +317,12 @@ class Superpotential:
         if total > 0:
             grid /= total
 
-        # Optional smoothing (periodic BC)
-        if smooth_sigma > 0:
-            grid = gaussian_filter(grid, sigma=smooth_sigma, mode='wrap')
+        grid = np.maximum(grid, np.max(grid) * 1e-6 if grid.max() > 0 else 1e-10)
+        W = -np.sqrt(grid)
 
-        # Convert to potential
-        W = -np.log(grid + epsilon)
+        # Gaussian smoothing (periodic BC)
+        if smooth_sigma > 0:
+            W = gaussian_filter(W, sigma=smooth_sigma, mode='wrap')
 
         return Superpotential(W)
 
@@ -418,7 +424,8 @@ def compute_bps_l(angles: list[ResidueAngles], W: Superpotential) -> tuple[float
 
     dw = np.abs(np.diff(w_vals))
     bps_total = float(np.sum(dw))
-    bps_l = bps_total / len(dw)
+    L = len(angles)
+    bps_l = bps_total / L
 
     return bps_l, bps_total
 
