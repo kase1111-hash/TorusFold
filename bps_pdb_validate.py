@@ -621,9 +621,9 @@ def classify_ss(phi_psi):
 
     Returns (pct_helix, pct_sheet, pct_coil).
 
-    Note: β-sheet ψ window is widened relative to the main pipeline
-    (>80° instead of >90°, <-110° instead of <-120°) to close the
-    dead zone that was misclassifying edge β-strand residues as coil.
+    Uses the wide two-basin definition (CLAUDE.md / bps_validate_controls.py):
+      α-helix: φ ∈ (−160°, 0°), ψ ∈ (−120°, 30°)
+      β-sheet: φ ∈ (−170°, −70°), ψ > 90° OR ψ < −120°  (handles ±180° wrap)
     """
     valid = [(p, s) for p, s in phi_psi if p is not None and s is not None]
     if not valid:
@@ -631,8 +631,8 @@ def classify_ss(phi_psi):
     phis = np.degrees(np.array([v[0] for v in valid]))
     psis = np.degrees(np.array([v[1] for v in valid]))
     n = len(phis)
-    helix = np.sum((-100 < phis) & (phis < -30) & (-67 < psis) & (psis < -7))
-    sheet = np.sum((-170 < phis) & (phis < -60) & ((psis > 80) | (psis < -110)))
+    helix = np.sum((-160 < phis) & (phis < 0) & (-120 < psis) & (psis < 30))
+    sheet = np.sum((-170 < phis) & (phis < -70) & ((psis > 90) | (psis < -120)))
     coil = n - helix - sheet
     return float(helix / n * 100), float(sheet / n * 100), float(coil / n * 100)
 
