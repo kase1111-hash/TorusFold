@@ -8,9 +8,9 @@ product that all other analysis scripts depend on.
 Procedure:
   1. Extract (φ, ψ) dihedral angles from all CIF files
   2. Bin into a 2D histogram on the Ramachandran plane
-  3. Normalize to probability density
-  4. Apply W = -ln(P + ε) transform
-  5. Save grid as superpotential_W.npz
+  3. Build W from the canonical shared module (bps/superpotential.py,
+     von Mises mixture, W = -√P)
+  4. Save W grid + raw histogram as superpotential_W.npz
 
 The output file contains:
   - 'grid': the W(φ, ψ) array (grid_size × grid_size)
@@ -132,8 +132,6 @@ def main():
                         help="Max proteins per organism (0=all)")
     parser.add_argument("--plddt-min", type=float, default=70.0,
                         help="Minimum pLDDT for residue inclusion (default: 70)")
-    parser.add_argument("--epsilon", type=float, default=1e-7,
-                        help="Floor value before log transform (default: 1e-7)")
     args = parser.parse_args()
 
     print("=" * 60)
@@ -216,16 +214,16 @@ def main():
           f"{n_skipped} skipped")
     print(f"  Time: {elapsed:.0f}s ({elapsed/60:.1f} min)")
 
-    # Normalize to probability density
+    # Build W from canonical shared module (von Mises mixture, W = -sqrt(P))
+    # rather than from the histogram.  The histogram is still saved for
+    # downstream epsilon-sweep tests (torus_distance_control.py).
     total_counts = histogram.sum()
     if total_counts == 0:
         print("ERROR: No angles collected. Check data directory.")
         sys.exit(1)
 
-    P = histogram / total_counts
-
-    # Apply W = -ln(P + ε)
-    W_grid = -np.log(P + args.epsilon)
+    from bps.superpotential import build_superpotential as _build_shared
+    W_grid, _phi_grid, _psi_grid = _build_shared(grid_size)
 
     # Save
     os.makedirs(args.output, exist_ok=True)
@@ -237,8 +235,7 @@ def main():
              n_angles=n_angles_total,
              n_proteins=n_proteins,
              n_organisms=len(organisms),
-             plddt_min=args.plddt_min,
-             epsilon=args.epsilon)
+             plddt_min=args.plddt_min)
 
     print(f"\n  Saved: {out_path}")
     print(f"  Grid shape: {W_grid.shape}")
