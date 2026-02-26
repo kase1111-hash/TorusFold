@@ -1013,16 +1013,12 @@ def run_validation(W_interp, conn):
     results = []
     for uid, pdb, name, ln_kf, co, exp_L in PLAXCO_PROTEINS:
         cif_path = None
-        for v in (4, 3, 2, 1):
-            for search_dir in [CACHE_DIR / "plaxco23",
-                               CACHE_DIR / "_selftest", CACHE_DIR / "_validation",
-                               CACHE_DIR / "ecoli", CACHE_DIR / "human",
-                               CACHE_DIR / "yeast", CACHE_DIR]:
-                p = search_dir / f"AF-{uid}-F1-model_v{v}.cif"
-                if p.exists() and p.stat().st_size > 100:
-                    cif_path = p
-                    break
-            if cif_path:
+        matches = sorted(CACHE_DIR.glob(f"*/AF-{uid}-F1-*.cif"), reverse=True)
+        if not matches:
+            matches = sorted(CACHE_DIR.glob(f"AF-{uid}-F1-*.cif"), reverse=True)
+        for p in matches:
+            if p.stat().st_size > 100:
+                cif_path = p
                 break
 
         if cif_path is None:
