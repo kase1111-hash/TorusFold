@@ -264,25 +264,15 @@ class Superpotential:
         self.w_max = float(np.max(grid))
 
     def __call__(self, phi_rad: float, psi_rad: float) -> float:
-        """Look up W at (phi, psi) in radians. Bilinear interpolation."""
-        phi_deg = math.degrees(phi_rad) % 360  # [0, 360)
-        psi_deg = math.degrees(psi_rad) % 360
-        # Map to grid indices (grid is -180 to +179)
-        i = phi_deg if phi_deg < 180 else phi_deg - 360
-        j = psi_deg if psi_deg < 180 else psi_deg - 360
-        # Convert to 0-indexed: -180 -> 0, +179 -> 359
-        gi = int(i + 180) % 360
-        gj = int(j + 180) % 360
+        """Look up W at (phi, psi) in radians. Nearest-neighbor grid lookup."""
+        gi = round(math.degrees(phi_rad) + 180) % 360
+        gj = round(math.degrees(psi_rad) + 180) % 360
         return float(self.grid[gi, gj])
 
     def lookup_array(self, phi_rad: np.ndarray, psi_rad: np.ndarray) -> np.ndarray:
         """Vectorized lookup for arrays of angles."""
-        phi_deg = np.degrees(phi_rad) % 360
-        psi_deg = np.degrees(psi_rad) % 360
-        phi_idx = np.where(phi_deg < 180, phi_deg, phi_deg - 360)
-        psi_idx = np.where(psi_deg < 180, psi_deg, psi_deg - 360)
-        gi = (phi_idx.astype(int) + 180) % 360
-        gj = (psi_idx.astype(int) + 180) % 360
+        gi = np.round(np.degrees(phi_rad) + 180).astype(int) % 360
+        gj = np.round(np.degrees(psi_rad) + 180).astype(int) % 360
         return self.grid[gi, gj]
 
     @staticmethod
@@ -561,13 +551,14 @@ def markov_shuffle(angles: list[ResidueAngles], W: Superpotential,
             m_psi[i] = psi[j]
         m_w = W.lookup_array(m_phi, m_psi)
         m_dw = np.abs(np.diff(m_w))
-        markov_bps.append(float(np.mean(m_dw)))
+        L = len(angles)
+        markov_bps.append(float(np.sum(m_dw)) / L)
 
         # Shuffled: random permutation
         perm = rng.permutation(len(phi))
         s_w = W.lookup_array(phi[perm], psi[perm])
         s_dw = np.abs(np.diff(s_w))
-        shuffled_bps.append(float(np.mean(s_dw)))
+        shuffled_bps.append(float(np.sum(s_dw)) / L)
 
     return float(np.mean(markov_bps)), float(np.mean(shuffled_bps))
 
@@ -708,61 +699,14 @@ def build_superpotential(organisms: dict[str, list[str]],
                          max_structures: int = 2000,
                          plddt_min: float = 70.0,
                          cache_path: Optional[str] = None) -> Superpotential:
-    """Build W from a sample of structures across all organisms."""
+    """Build W from the canonical von Mises -sqrt(P) shared module.
 
-    # Check cache
-    if cache_path and os.path.exists(cache_path):
-        print(f"  Loading cached superpotential from {cache_path}")
-        return Superpotential.load(cache_path)
-
-    print(f"  Building superpotential from up to {max_structures} structures...")
-
-    # Sample evenly across organisms
-    all_files = []
-    for org, files in organisms.items():
-        all_files.extend((f, org) for f in files)
-
-    rng = np.random.default_rng(42)
-    if len(all_files) > max_structures:
-        indices = rng.choice(len(all_files), max_structures, replace=False)
-        sample = [all_files[i] for i in indices]
-    else:
-        sample = all_files
-
-    # Extract all angles
-    all_phi_psi = []
-    processed = 0
-    errors = 0
-    first_errors = []
-    for filepath, org in sample:
-        try:
-            angles = extract_dihedrals(filepath, plddt_min)
-            for a in angles:
-                all_phi_psi.append((a.phi, a.psi))
-            processed += 1
-        except Exception as e:
-            errors += 1
-            if len(first_errors) < 3:
-                first_errors.append((filepath, str(e)))
-
-        if processed % 200 == 0 and processed > 0:
-            print(f"    {processed}/{len(sample)} structures, {len(all_phi_psi)} angles collected")
-
-    if first_errors:
-        print(f"  First errors:")
-        for fp, err in first_errors:
-            print(f"    {os.path.basename(fp)}: {err}")
-
-    print(f"  Collected {len(all_phi_psi)} (phi,psi) pairs from {processed} structures ({errors} errors)")
-
-    if len(all_phi_psi) < 100:
-        print(f"  FATAL: Only {len(all_phi_psi)} observations. Cannot build W.")
-        print(f"  {errors}/{len(sample)} files failed to parse.")
-        print(f"  Check that the .cif files are valid AlphaFold mmCIF structures.")
-        sys.exit(1)
-
-    phi_psi = np.array(all_phi_psi)
-    W = Superpotential.from_angles(phi_psi, smooth_sigma=0.0)
+    The organisms/max_structures/plddt_min parameters are accepted for
+    backward compatibility but ignored — W is now a fixed parametric
+    model, not data-dependent.
+    """
+    print("  Building superpotential from canonical von Mises -sqrt(P) mixture...")
+    W = Superpotential.from_von_mises(360)
 
     stats = W.stats()
     print(f"  W range: [{stats['W_range'][0]:.2f}, {stats['W_range'][1]:.2f}]")
