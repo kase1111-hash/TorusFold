@@ -178,7 +178,7 @@ def build_superpotential(grid_size=360):
     density = gaussian_filter(density, sigma=1.5, mode='wrap')
     density /= density.sum()
 
-    eps = 1e-8
+    eps = 1e-7  # standardized density floor
     W = -np.log(density + eps)
     W -= W.min()  # shift so min = 0
 

@@ -362,7 +362,10 @@ def compute_bps(W_values: NDArray) -> float:
 
 
 def compute_bps_per_residue(W_values: NDArray) -> float:
-    """Compute BPS/L = BPS / len(W_values).
+    """Compute BPS/L = BPS / (L - 1).
+
+    Normalizes by L-1 because BPS = sum of |delta W_i| over L-1
+    sequential differences from L residues.
 
     Parameters
     ----------
@@ -377,7 +380,62 @@ def compute_bps_per_residue(W_values: NDArray) -> float:
     L = len(W_values)
     if L < 2:
         return 0.0
-    return compute_bps(W_values) / L
+    return compute_bps(W_values) / (L - 1)
+
+
+def smoothing_sensitivity(pdb_dir: Optional[str] = None,
+                          sigmas_deg: Optional[list] = None,
+                          grid_size: int = 360) -> list:
+    """Sweep smoothing parameter and report BPS/L stability.
+
+    Builds W at each sigma, computes BPS/L on all cached PDB structures,
+    and reports mean BPS/L to demonstrate that the three-level
+    decomposition is stable across smoothing levels.
+
+    Returns list of dicts with sigma, mean_bps, std_bps.
+    """
+    if pdb_dir is None:
+        pdb_dir = _PDB_CACHE
+    if sigmas_deg is None:
+        sigmas_deg = [0, 0.5, 1.0, 2.0, 5.0]
+
+    from bps.extract import extract_dihedrals_pdb
+
+    results = []
+    for sigma in sigmas_deg:
+        W, phi_g, psi_g = build_superpotential(grid_size, pdb_dir, sigma)
+
+        bps_values = []
+        pdb_files = sorted(f for f in os.listdir(pdb_dir) if f.endswith('.pdb'))
+        for fname in pdb_files:
+            pdb_path = os.path.join(pdb_dir, fname)
+            try:
+                residues = extract_dihedrals_pdb(pdb_path, chain_id="A")
+            except (ValueError, Exception):
+                continue
+            valid = [(r["phi"], r["psi"]) for r in residues
+                     if r["phi"] is not None and r["psi"] is not None]
+            if len(valid) < 10:
+                continue
+            phi_arr = np.array([v[0] for v in valid])
+            psi_arr = np.array([v[1] for v in valid])
+            W_vals = lookup_W_batch(W, phi_g, psi_g, phi_arr, psi_arr)
+            bps_l = compute_bps_per_residue(W_vals)
+            bps_values.append(bps_l)
+
+        if bps_values:
+            mean_bps = float(np.mean(bps_values))
+            std_bps = float(np.std(bps_values))
+            results.append({
+                'sigma_deg': sigma,
+                'n_proteins': len(bps_values),
+                'mean_bps': mean_bps,
+                'std_bps': std_bps,
+            })
+            print(f"  sigma={sigma:5.1f} deg: N={len(bps_values)}, "
+                  f"BPS/L={mean_bps:.3f} ± {std_bps:.3f}")
+
+    return results
 
 
 if __name__ == "__main__":

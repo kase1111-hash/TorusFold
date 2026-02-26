@@ -133,6 +133,51 @@ def cluster_stratum(df, eps_values=[0.3, 0.5, 0.8], min_samples=5):
     }
 
 
+def null_clustering_control(df, n_shuffles=100, eps_values=None,
+                            min_samples=3):
+    """Run the same clustering pipeline on shuffled data to measure
+    false-positive rate of finding tight families.
+
+    Independently permutes each feature column, then runs the same
+    eps-search clustering pipeline. Reports how many tight families
+    arise by chance.
+    """
+    if eps_values is None:
+        eps_values = [0.10, 0.15, 0.20, 0.25, 0.30, 0.40, 0.50]
+
+    rng = np.random.default_rng(42)
+
+    # Real clustering
+    _, real_info = cluster_by_length(df, eps_values, min_samples)
+    real_n_tight = sum(1 for fam in real_info.get('families', {}).values()
+                       if fam['tightness'] == 'tight')
+
+    null_tight_counts = []
+    for _ in range(n_shuffles):
+        df_shuf = df.copy()
+        for col in ['delta_w', 'torus_path_len']:
+            if col in df_shuf.columns:
+                df_shuf[col] = rng.permutation(df_shuf[col].values)
+        _, null_info = cluster_by_length(df_shuf, eps_values, min_samples)
+        null_n = sum(1 for fam in null_info.get('families', {}).values()
+                     if fam['tightness'] == 'tight')
+        null_tight_counts.append(null_n)
+
+    null_arr = np.array(null_tight_counts)
+    p_value = float(np.mean(null_arr >= real_n_tight))
+
+    print(f"  NULL CONTROL: Real = {real_n_tight} tight families, "
+          f"Null = {np.mean(null_arr):.1f} +/- {np.std(null_arr):.1f}, "
+          f"p = {p_value:.3f}")
+
+    return {
+        'real_n_tight': real_n_tight,
+        'null_mean': float(np.mean(null_arr)),
+        'null_std': float(np.std(null_arr)),
+        'p_value': p_value,
+    }
+
+
 def run_classifier(df_clustered):
     """Train random forest to predict family from sequence features."""
     # Only use tight families with enough members

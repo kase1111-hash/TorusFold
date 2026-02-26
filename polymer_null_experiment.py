@@ -344,6 +344,18 @@ def generate_model2_steric(sampler, rng, chain_length, max_retries=50):
     Model 2: Steric-coupled chain.
     Build backbone with realistic geometry, reject φ/ψ that cause
     steric clashes with recent residues.
+
+    STERIC MODEL LIMITATIONS:
+    - Backbone atoms only (N, CA, C) — no side chains
+    - Hard-sphere clash at 2.0 Angstrom — no soft potentials
+    - 6-residue lookback — no long-range contacts
+    - No electrostatics, no van der Waals, no solvent
+    - This tests GEOMETRY only, not full force-field physics
+
+    If this minimal steric model shows Seg/Real ≈ 1.0, it means
+    backbone clash avoidance alone does not produce the smoothing
+    effect. A full-physics null (MD simulation) is needed to
+    conclusively rule out universal physics as the source.
     """
     phi_list = []
     psi_list = []

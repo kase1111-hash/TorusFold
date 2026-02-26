@@ -279,7 +279,7 @@ def build_superpotential(grid_size=360):
     density /= density.sum()
     density = gaussian_filter(density, sigma=1.5, mode='wrap')
     density /= density.sum()
-    W = -np.log(density + 1e-8)
+    W = -np.log(density + 1e-7)  # standardized density floor
     W -= W.min()
     return W, phi_grid, psi_grid
 
@@ -537,6 +537,76 @@ def cluster_all_loops(all_loops):
         log.info(f"    → {n_tight} tight + {n_catch} catch-all + {n_noise} noise families")
 
     return results
+
+
+def null_clustering_control(all_loops, n_shuffles=100, rng=None):
+    """Run the same clustering pipeline on shuffled data to measure
+    false-positive clustering rate.
+
+    For each shuffle, independently permute each feature column of the
+    loop distance matrix inputs, then run the same eps-search + recursive
+    subclustering pipeline. Reports how many 'tight' families emerge by
+    chance.
+
+    Returns dict with real_n_tight, null_mean, null_std, p_value.
+    """
+    if rng is None:
+        rng = np.random.default_rng(42)
+
+    # Real clustering
+    real_results = cluster_all_loops(all_loops)
+    real_n_tight = sum(
+        1 for pair_clusters in real_results.values()
+        for _, t, _ in pair_clusters if t == "tight"
+    )
+
+    log.info(f"\n  NULL CONTROL: {n_shuffles} shuffles...")
+    null_tight_counts = []
+
+    for s in range(n_shuffles):
+        # Create shuffled loops: permute (phi, psi) paths independently
+        shuffled_loops = []
+        indices = rng.permutation(len(all_loops))
+        for i, loop in enumerate(all_loops):
+            # Swap path data between loops while keeping pair_key
+            donor = all_loops[indices[i]]
+            shuffled = type(loop).__new__(type(loop))
+            shuffled.__dict__ = loop.__dict__.copy()
+            shuffled.phi_path = donor.phi_path.copy()
+            shuffled.psi_path = donor.psi_path.copy()
+            if hasattr(donor, 'path_length_torus'):
+                shuffled.path_length_torus = donor.path_length_torus
+            if hasattr(donor, 'delta_W'):
+                shuffled.delta_W = donor.delta_W
+            shuffled_loops.append(shuffled)
+
+        null_results = cluster_all_loops(shuffled_loops)
+        null_n_tight = sum(
+            1 for pair_clusters in null_results.values()
+            for _, t, _ in pair_clusters if t == "tight"
+        )
+        null_tight_counts.append(null_n_tight)
+
+        if (s + 1) % 25 == 0:
+            log.info(f"    Shuffle {s+1}/{n_shuffles}: "
+                     f"{null_n_tight} tight families")
+
+    null_arr = np.array(null_tight_counts)
+    p_value = float(np.mean(null_arr >= real_n_tight))
+
+    log.info(f"\n  NULL CONTROL RESULTS:")
+    log.info(f"    Real tight families: {real_n_tight}")
+    log.info(f"    Null tight families: {np.mean(null_arr):.1f} "
+             f"+/- {np.std(null_arr):.1f}")
+    log.info(f"    p-value: {p_value:.3f}")
+
+    return {
+        'real_n_tight': real_n_tight,
+        'null_mean': float(np.mean(null_arr)),
+        'null_std': float(np.std(null_arr)),
+        'p_value': p_value,
+        'null_counts': null_tight_counts,
+    }
 
 
 # ═══════════════════════════════════════════════════════════════════
