@@ -17,10 +17,11 @@ METHOD:
                            different constants between basins.
                            Tests whether signal comes from
                            inter-basin jumps vs intra-basin detail.
-  Metric 4: Original W  — standard |ΔW| for comparison baseline.
+  Metric 4: Original W  — standard |ΔW| for comparison baseline
+                          (W = -√P from shared module).
 
-  Also runs ε sensitivity sweep (1e-7, 1e-5, 1e-4, 1e-3) on
-  the original W metric to test regularization dependence.
+  Also runs ε sensitivity sweep (1e-7, 1e-5, 1e-4, 1e-3) using
+  W = -ln(P + ε) to test regularization dependence.
 
   For each metric, computes:
     - Mean sequential "roughness" for Real proteins
@@ -187,7 +188,9 @@ def roughness_W_epsilon(phi, psi, histogram, grid_size, epsilon):
     if len(phi) < 2:
         return 0.0
     total = histogram.sum()
-    P = histogram / total if total > 0 else histogram
+    dphi = 2 * np.pi / grid_size
+    dpsi = 2 * np.pi / grid_size
+    P = histogram / (total * dphi * dpsi) if total > 0 else histogram
     W = -np.log(P + epsilon)
     scale = grid_size / 360.0
     phi_d = np.degrees(phi)

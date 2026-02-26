@@ -258,44 +258,13 @@ class LoopPath:
 
 
 # ═══════════════════════════════════════════════════════════════════
-# SUPERPOTENTIAL (unchanged from v1)
+# SUPERPOTENTIAL — delegates to canonical shared module
 # ═══════════════════════════════════════════════════════════════════
 
-def build_superpotential(grid_size=360):
-    from scipy.ndimage import gaussian_filter
-    phi_grid = np.linspace(-np.pi, np.pi, grid_size, endpoint=False)
-    psi_grid = np.linspace(-np.pi, np.pi, grid_size, endpoint=False)
-    PHI, PSI = np.meshgrid(phi_grid, psi_grid, indexing='ij')
-    components = [
-        (0.40,-1.10,-0.75,20.0,20.0),(0.25,-2.09,2.27,15.0,12.0),
-        (0.10,-1.31,2.62,10.0,8.0),(0.08,1.00,0.82,15.0,15.0),
-        (0.05,-1.40,0.50,5.0,5.0),(0.04,-2.50,-0.70,10.0,10.0),
-        (0.03,-1.05,2.90,8.0,6.0),(0.03,-1.55,2.80,10.0,8.0),
-        (0.01,0.00,3.14,3.0,3.0),(0.01,-2.80,0.00,3.0,3.0),
-    ]
-    density = np.zeros_like(PHI)
-    for w, mu_p, mu_s, kp, ks in components:
-        density += w * np.exp(kp * np.cos(PHI - mu_p)) * np.exp(ks * np.cos(PSI - mu_s))
-    density /= density.sum()
-    density = gaussian_filter(density, sigma=1.5, mode='wrap')
-    density /= density.sum()
-    W = -np.log(density + 1e-7)  # standardized density floor
-    W -= W.min()
-    return W, phi_grid, psi_grid
-
-
-def lookup_W(W_grid, phi_grid, psi_grid, phi, psi):
-    dphi = phi_grid[1] - phi_grid[0]
-    dpsi = psi_grid[1] - psi_grid[0]
-    phi_w = ((phi + np.pi) % (2 * np.pi)) - np.pi
-    psi_w = ((psi + np.pi) % (2 * np.pi)) - np.pi
-    fi = ((phi_w - phi_grid[0]) / dphi) % len(phi_grid)
-    pi = ((psi_w - psi_grid[0]) / dpsi) % len(psi_grid)
-    i0, j0 = int(fi) % len(phi_grid), int(pi) % len(psi_grid)
-    i1, j1 = (i0+1) % len(phi_grid), (j0+1) % len(psi_grid)
-    df, dp = fi - int(fi), pi - int(pi)
-    return (W_grid[i0,j0]*(1-df)*(1-dp) + W_grid[i1,j0]*df*(1-dp) +
-            W_grid[i0,j1]*(1-df)*dp + W_grid[i1,j1]*df*dp)
+from bps.superpotential import (
+    build_superpotential,
+    lookup_W,
+)
 
 
 # ═══════════════════════════════════════════════════════════════════
